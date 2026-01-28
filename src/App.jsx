@@ -47,14 +47,15 @@ import {
   Lock, 
   LogIn, 
   LogOut, 
-  UserPlus
+  UserPlus,
+  Menu
 } from 'lucide-react';
 
-// --- CONFIGURAÇÃO DO BANCO DE DADOS (SUPABASE) ---
+// --- DATABASE CONFIGURATION (SUPABASE) ---
 const SUPABASE_URL = "https://nmuhjnkiktaxvvarcfvt.supabase.co"; 
 const SUPABASE_ANON_KEY = "sb_publishable_1KEeI_9oX6JkhqPoLcxO-A_vFN77VoA";
 
-// --- COMPONENTES UI AUXILIARES ---
+// --- UI HELPER COMPONENTS ---
 
 const Card = ({ children, className = "", onClick }) => (
   <div 
@@ -103,7 +104,7 @@ const Input = ({ label, icon: Icon, ...props }) => (
   </div>
 );
 
-// --- APP PRINCIPAL ---
+// --- MAIN APP ---
 
 export default function App() {
   const [supabase, setSupabase] = useState(null);
@@ -112,6 +113,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewingVehicle, setViewingVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const [currentTenantId, setCurrentTenantId] = useState(null);
 
@@ -385,7 +387,7 @@ export default function App() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     
-    // Header do PDF
+    // PDF Header
     doc.setFillColor(39, 39, 42); doc.rect(0, 0, 210, 40, 'F');
     doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.setFont("helvetica", "bold");
     doc.text(profile.workshop_name || "AUTOPRIME", 15, 20);
@@ -395,29 +397,29 @@ export default function App() {
     doc.text(`Contato: ${profile.phone || "-"} | ${profile.email || "-"}`, 15, 37);
     doc.setFontSize(14); doc.text("ORÇAMENTO #"+vehicle.id.substring(0,6).toUpperCase(), 140, 25);
     
-    // Dados do Cliente
+    // Customer Info
     doc.setTextColor(0, 0, 0); doc.setFontSize(12); doc.setFont("helvetica", "bold");
     doc.text("DADOS DO CLIENTE", 15, 55); doc.line(15, 57, 195, 57);
     doc.setFont("helvetica", "normal"); doc.setFontSize(10);
     doc.text(`Cliente: ${vehicle.customer_name}`, 15, 65); doc.text(`Telefone: ${vehicle.phone}`, 15, 72);
     
-    // Dados do Veículo
+    // Vehicle Info
     doc.setFont("helvetica", "bold"); doc.text("DADOS DO VEÍCULO", 15, 85); doc.line(15, 87, 195, 87);
     doc.setFont("helvetica", "normal"); doc.text(`Marca/Modelo: ${vehicle.brand} ${vehicle.model}`, 15, 95);
     doc.text(`Placa: ${vehicle.license_plate}`, 15, 102); doc.text(`Cor: ${vehicle.color}`, 140, 95);
     doc.text(`Profissional: ${vehicle.professional || "-"}`, 140, 102);
     
-    // Descritivo dos Serviços
+    // Service Description
     doc.setFont("helvetica", "bold"); doc.text("DESCRITIVO DOS SERVIÇOS", 15, 115); doc.line(15, 117, 195, 117);
     const splitDesc = doc.splitTextToSize(vehicle.service_description || "Nenhum serviço descrito.", 180);
     doc.setFont("helvetica", "normal"); doc.text(splitDesc, 15, 125);
     
-    // Valor Total
+    // Total Value
     const totalPos = 180;
     const total = `VALOR TOTAL: R$ ${Number(vehicle.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
     doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text(total, 120, totalPos);
     
-    // Área de Assinatura
+    // Signature Area
     const signPos = 240;
     doc.setFontSize(8); doc.setFont("helvetica", "normal");
     doc.line(15, signPos, 90, signPos); doc.text("Assinatura do Cliente", 15, signPos + 5);
@@ -457,7 +459,6 @@ export default function App() {
     e.preventDefault();
     if (!supabase || !currentTenantId) return;
 
-    // CORREÇÃO: Mapeamento correto dos campos do estado para o banco
     const vData = {
       customer_name: newVehicle.customerName, 
       phone: newVehicle.phone, 
@@ -469,7 +470,7 @@ export default function App() {
       entry_time: new Date().toLocaleString('pt-BR'), 
       location: newVehicle.location,
       professional: newVehicle.professional, 
-      service_description: newVehicle.serviceDescription, // Ajustado de service_description para serviceDescription
+      service_description: newVehicle.serviceDescription,
       status: 'active', 
       work_status: newVehicle.workStatus, 
       price: Number(newVehicle.price) || 0,
@@ -482,7 +483,7 @@ export default function App() {
       const { data, error } = await supabase.from('autoprime_vehicles').insert([vData]).select();
       
       if (error) {
-        console.error("Erro Supabase:", error);
+        console.error("Supabase Error:", error);
         showNotification("Erro ao registrar veículo. Verifique as permissões.", "danger");
         return;
       }
@@ -490,7 +491,6 @@ export default function App() {
       if (data && data.length > 0) {
         setVehicles(prev => [data[0], ...prev]);
         setIsModalOpen(false);
-        // Reset do formulário
         setNewVehicle({ 
           customerName: "", phone: "", brand: "", model: "", licensePlate: "", 
           type: "Normal", color: "", location: "", professional: "", 
@@ -500,7 +500,7 @@ export default function App() {
         showNotification("Veículo registrado com sucesso!");
       }
     } catch (err) {
-      console.error("Erro crítico:", err);
+      console.error("Critical Error:", err);
       showNotification("Erro de conexão com o servidor.", "danger");
     }
   };
@@ -566,7 +566,7 @@ export default function App() {
       if (data && data[0]) setFixedCostsId(data[0].id);
       showNotification("Finanças Atualizadas!");
     } else {
-      console.error("Erro ao salvar custos:", error);
+      console.error("Error saving costs:", error);
       showNotification("Erro de permissão no banco de dados.", "danger");
     }
   };
@@ -578,6 +578,47 @@ export default function App() {
   };
 
   // --- RENDERS ---
+
+  const SidebarContent = () => (
+    <>
+      <div className="flex items-center gap-3 mb-12">
+        <div className="bg-orange-600 p-2 rounded-xl text-black rotate-12">
+          <Paintbrush size={24} strokeWidth={3}/>
+        </div>
+        <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter">
+          Auto<span className="text-orange-600">Prime</span>
+        </h1>
+      </div>
+      <nav className="flex flex-col gap-2 flex-1">
+        {[
+          { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
+          { id: 'history', label: 'Histórico', icon: History },
+          { id: 'polishing', label: 'Polimento', icon: Sparkles },
+          { id: 'inventory', label: 'Estoque', icon: Package },
+          { id: 'finance', label: 'Financeiro', icon: DollarSign },
+          { id: 'customers', label: 'Clientes', icon: Users },
+          { id: 'profile', label: 'Meus dados', icon: User },
+        ].map(item => (
+          <button 
+            key={item.id} 
+            onClick={() => {
+              setActiveTab(item.id);
+              setIsMobileMenuOpen(false);
+            }} 
+            className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all ${activeTab === item.id ? 'bg-orange-600 text-black italic' : 'text-zinc-500 hover:text-white hover:bg-zinc-900'}`}
+          >
+            <item.icon size={18} /> {item.label}
+          </button>
+        ))}
+      </nav>
+      <button 
+        onClick={handleLogout} 
+        className="mt-auto flex items-center gap-3 px-4 py-3.5 text-red-500 font-black uppercase text-[11px] tracking-widest hover:bg-red-500/10 rounded-2xl transition-all"
+      >
+        <LogOut size={18} /> Sair
+      </button>
+    </>
+  );
 
   const renderAuth = () => (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
@@ -641,12 +682,12 @@ export default function App() {
           </Card>
         ))}
       </div>
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <h2 className="text-2xl font-black text-white tracking-tight uppercase italic flex items-center gap-2">
             {dashboardFilter === 'budgets' ? 'Orçamentos Pendentes' : 
              dashboardFilter === 'done' ? 'Serviços Finalizados no Mês' : 'Veículos Ativos'}
         </h2>
-        <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2"><Plus size={18} /> Nova Entrada</Button>
+        <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 w-full md:w-auto justify-center"><Plus size={18} /> Nova Entrada</Button>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredDashboardVehicles.length === 0 ? (
@@ -694,7 +735,7 @@ export default function App() {
           <div className="md:col-span-2"><Input label="Endereço Completo" value={profile.address} onChange={(e) => setProfile({...profile, address: e.target.value})} /></div>
           <div className="md:col-span-2"><Input label="E-mail de Contato" value={profile.email} onChange={(e) => setProfile({...profile, email: e.target.value})} /></div>
         </div>
-        <div className="pt-6 border-t border-zinc-800 flex justify-end"><Button onClick={saveProfile} className="px-12"><Save size={18} className="inline mr-2"/> Salvar Dados</Button></div>
+        <div className="pt-6 border-t border-zinc-800 flex justify-end"><Button onClick={saveProfile} className="px-12 w-full md:w-auto"><Save size={18} className="inline mr-2"/> Salvar Dados</Button></div>
       </Card>
     </div>
   );
@@ -706,22 +747,45 @@ export default function App() {
     <div className="min-h-screen bg-black text-zinc-300 font-sans flex flex-col md:flex-row relative">
       {notification.show && <div className="fixed top-4 right-4 z-[500] flex items-center gap-3 px-6 py-4 rounded-2xl border bg-emerald-950 border-emerald-500 text-emerald-400 animate-in slide-in-from-top-10"><Check size={20}/><span className="font-bold uppercase text-xs tracking-widest">{notification.message}</span></div>}
       
+      {/* MOBILE HEADER */}
+      <header className="md:hidden flex items-center justify-between p-4 bg-zinc-950 border-b border-zinc-800 sticky top-0 z-50">
+        <div className="flex items-center gap-2">
+          <div className="bg-orange-600 p-1.5 rounded-lg text-black rotate-12">
+            <Paintbrush size={18} strokeWidth={3}/>
+          </div>
+          <h1 className="text-xl font-black text-white italic uppercase tracking-tighter">
+            Auto<span className="text-orange-600">Prime</span>
+          </h1>
+        </div>
+        <button 
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="text-zinc-400 p-2 hover:bg-zinc-800 rounded-xl transition-all"
+        >
+          <Menu size={24} />
+        </button>
+      </header>
+
+      {/* MOBILE MENU OVERLAY */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-[100] md:hidden">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-zinc-950 p-6 flex flex-col animate-in slide-in-from-left duration-300">
+            <div className="flex justify-end mb-4">
+              <button onClick={() => setIsMobileMenuOpen(false)} className="text-zinc-500 p-2 hover:bg-zinc-900 rounded-lg">
+                <X size={24} />
+              </button>
+            </div>
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
+      
+      {/* DESKTOP SIDEBAR */}
       <aside className="hidden md:flex flex-col w-72 bg-zinc-950 border-r border-zinc-800 p-6 sticky top-0 h-screen">
-        <div className="flex items-center gap-3 mb-12"><div className="bg-orange-600 p-2 rounded-xl text-black rotate-12"><Paintbrush size={24} strokeWidth={3}/></div><h1 className="text-2xl font-black text-white italic uppercase tracking-tighter">Auto<span className="text-orange-600">Prime</span></h1></div>
-        <nav className="flex flex-col gap-2 flex-1">
-          {[
-            { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
-            { id: 'history', label: 'Histórico', icon: History },
-            { id: 'polishing', label: 'Polimento', icon: Sparkles },
-            { id: 'inventory', label: 'Estoque', icon: Package },
-            { id: 'finance', label: 'Financeiro', icon: DollarSign },
-            { id: 'customers', label: 'Clientes', icon: Users },
-            { id: 'profile', label: 'Meus dados', icon: User },
-          ].map(item => (
-            <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all ${activeTab === item.id ? 'bg-orange-600 text-black italic' : 'text-zinc-500 hover:text-white hover:bg-zinc-900'}`}><item.icon size={18} /> {item.label}</button>
-          ))}
-        </nav>
-        <button onClick={handleLogout} className="mt-auto flex items-center gap-3 px-4 py-3.5 text-red-500 font-black uppercase text-[11px] tracking-widest hover:bg-red-500/10 rounded-2xl transition-all"><LogOut size={18} /> Sair</button>
+        <SidebarContent />
       </aside>
 
       <main className="flex-1 min-h-screen overflow-y-auto pb-24 md:pb-0">
@@ -755,8 +819,8 @@ export default function App() {
         {activeTab === 'polishing' && (
            <div className="p-6 space-y-6">
               <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter flex items-center gap-2"><Sparkles className="text-orange-500"/> Agenda de Polimento</h2>
-              <Card className="overflow-hidden">
-                <table className="w-full text-left text-sm">
+              <Card className="overflow-x-auto">
+                <table className="w-full text-left text-sm min-w-[500px]">
                   <thead className="bg-zinc-800 text-zinc-400 text-[9px] uppercase font-black tracking-widest">
                     <tr><th className="p-4">Cliente</th><th className="p-4">Veículo</th><th className="p-4">Data Polimento</th></tr>
                   </thead>
@@ -780,8 +844,8 @@ export default function App() {
               <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Estoque</h2>
               <Button onClick={() => setIsInventoryModalOpen(true)} className="flex items-center gap-2"><Plus size={18}/> Novo Item</Button>
             </div>
-            <Card className="overflow-hidden">
-              <table className="w-full text-left text-sm">
+            <Card className="overflow-x-auto">
+              <table className="w-full text-left text-sm min-w-[500px]">
                 <thead className="bg-zinc-800 text-zinc-500 text-[9px] uppercase font-black tracking-widest">
                   <tr><th className="p-4">Item</th><th className="p-4">Marca</th><th className="p-4">Qtd</th><th className="p-4">Preço</th><th className="p-4">Ação</th></tr>
                 </thead>
@@ -828,7 +892,7 @@ export default function App() {
                 <Input label="Água" type="number" value={fixedCosts.agua} onChange={e => setFixedCosts({...fixedCosts, agua: e.target.value})}/>
                 <Input label="Internet" type="number" value={fixedCosts.internet} onChange={e => setFixedCosts({...fixedCosts, internet: e.target.value})}/>
               </div>
-              <div className="flex justify-end"><Button onClick={saveFixedCosts} className="px-8"><Save size={18} className="mr-2 inline"/> Salvar Financeiro</Button></div>
+              <div className="flex justify-end"><Button onClick={saveFixedCosts} className="px-8 w-full md:w-auto"><Save size={18} className="mr-2 inline"/> Salvar Financeiro</Button></div>
             </Card>
           </div>
         )}
@@ -836,8 +900,8 @@ export default function App() {
         {activeTab === 'customers' && (
           <div className="p-6 space-y-6">
              <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Meus Clientes</h2>
-             <Card className="overflow-hidden">
-                <table className="w-full text-left text-sm">
+             <Card className="overflow-x-auto">
+                <table className="w-full text-left text-sm min-w-[500px]">
                    <thead className="bg-zinc-800 text-zinc-400 text-[9px] uppercase font-black tracking-widest">
                       <tr><th className="p-4">Nome</th><th className="p-4">Telefone</th><th className="p-4">Veículo</th></tr>
                    </thead>
@@ -859,42 +923,42 @@ export default function App() {
 
       {/* MODAL VIEW VEHICLE */}
       {viewingVehicle && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[150] flex items-center justify-center p-4">
-           <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto relative flex flex-col">
-              <div className="bg-orange-600 p-8 flex justify-between items-start">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[150] flex items-center justify-center p-2 md:p-4">
+           <Card className="w-full max-w-4xl max-h-[95vh] overflow-y-auto relative flex flex-col">
+              <div className="bg-orange-600 p-6 md:p-8 flex justify-between items-start">
                   <div>
-                    <h2 className="text-4xl font-black text-black italic uppercase leading-none">{viewingVehicle.brand} {viewingVehicle.model}</h2>
-                    <p className="text-black font-black uppercase text-xs mt-2 tracking-widest">{viewingVehicle.license_plate} • {viewingVehicle.color}</p>
+                    <h2 className="text-3xl md:text-4xl font-black text-black italic uppercase leading-none">{viewingVehicle.brand} {viewingVehicle.model}</h2>
+                    <p className="text-black font-black uppercase text-[10px] md:text-xs mt-2 tracking-widest">{viewingVehicle.license_plate} • {viewingVehicle.color}</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" className="bg-black/20 text-black border-none" onClick={() => generateBudgetPDF(viewingVehicle)}><Download size={18} /></Button>
+                    <Button variant="outline" className="bg-black/20 text-black border-none px-3" onClick={() => generateBudgetPDF(viewingVehicle)}><Download size={18} /></Button>
                     <button onClick={() => setViewingVehicle(null)} className="text-black bg-white/10 p-2 rounded-full hover:bg-white/20 transition-all"><X size={24}/></button>
                   </div>
               </div>
               
-              <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
-                    <div><p className="text-zinc-500 text-[10px] font-black uppercase tracking-tighter">Cliente</p><p className="text-white font-bold">{viewingVehicle.customer_name}</p></div>
-                    <div><p className="text-zinc-500 text-[10px] font-black uppercase tracking-tighter">Telefone</p><p className="text-white font-bold">{viewingVehicle.phone}</p></div>
-                    <div><p className="text-zinc-500 text-[10px] font-black uppercase tracking-tighter">Profissional</p><p className="text-white font-bold">{viewingVehicle.professional || "-"}</p></div>
-                    <div><p className="text-zinc-500 text-[10px] font-black uppercase tracking-tighter">Entrada</p><p className="text-white font-bold">{viewingVehicle.entry_time}</p></div>
+                    <div><p className="text-zinc-500 text-[10px] font-black uppercase tracking-tighter">Cliente</p><p className="text-white font-bold text-sm">{viewingVehicle.customer_name}</p></div>
+                    <div><p className="text-zinc-500 text-[10px] font-black uppercase tracking-tighter">Telefone</p><p className="text-white font-bold text-sm">{viewingVehicle.phone}</p></div>
+                    <div><p className="text-zinc-500 text-[10px] font-black uppercase tracking-tighter">Profissional</p><p className="text-white font-bold text-sm">{viewingVehicle.professional || "-"}</p></div>
+                    <div><p className="text-zinc-500 text-[10px] font-black uppercase tracking-tighter">Entrada</p><p className="text-white font-bold text-sm">{viewingVehicle.entry_time}</p></div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 p-4 bg-zinc-800/50 rounded-2xl border border-zinc-700">
-                    <div><p className="text-zinc-500 text-[10px] font-black uppercase">Valor do Serviço</p><p className="text-emerald-500 font-black text-xl">R$ {Number(viewingVehicle.price).toLocaleString()}</p></div>
-                    <div><p className="text-zinc-500 text-[10px] font-black uppercase">Custo Material</p><p className="text-red-500 font-black text-xl">R$ {Number(viewingVehicle.cost).toLocaleString()}</p></div>
+                    <div><p className="text-zinc-500 text-[10px] font-black uppercase">Valor do Serviço</p><p className="text-emerald-500 font-black text-lg md:text-xl">R$ {Number(viewingVehicle.price).toLocaleString()}</p></div>
+                    <div><p className="text-zinc-500 text-[10px] font-black uppercase">Custo Material</p><p className="text-red-500 font-black text-lg md:text-xl">R$ {Number(viewingVehicle.cost).toLocaleString()}</p></div>
                   </div>
 
                   <div className="p-4 bg-black/40 rounded-xl border border-white/5">
                     <p className="text-zinc-500 text-[10px] uppercase font-black mb-2">Descrição do Serviço</p>
-                    <p className="text-zinc-200 italic leading-relaxed">"{viewingVehicle.service_description}"</p>
+                    <p className="text-zinc-200 italic leading-relaxed text-sm">"{viewingVehicle.service_description}"</p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                    <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest ml-1">Check-list de Imagens</p>
-                   <div className="grid grid-cols-2 gap-4">
+                   <div className="grid grid-cols-2 gap-3 md:gap-4">
                       {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map(pos => (
                         <div key={pos} className="aspect-video bg-zinc-800 rounded-xl overflow-hidden border border-white/5 relative">
                            {viewingVehicle.photos?.[pos] ? (
@@ -915,10 +979,10 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL NOVO VEÍCULO */}
+      {/* MODAL NEW VEHICLE */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl p-8 relative space-y-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-2 md:p-4">
+          <Card className="w-full max-w-2xl p-6 md:p-8 relative space-y-6 md:space-y-8 max-h-[95vh] overflow-y-auto">
             <button onClick={() => setIsModalOpen(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-white p-2"><X size={24}/></button>
             <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Entrada de Veículo</h2>
             <form onSubmit={handleAddVehicle} className="space-y-6">
@@ -952,7 +1016,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL NOVO ITEM ESTOQUE */}
+      {/* MODAL NEW INVENTORY ITEM */}
       {isInventoryModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
           <Card className="w-full max-w-xl p-8 relative space-y-8 animate-in zoom-in-95">
