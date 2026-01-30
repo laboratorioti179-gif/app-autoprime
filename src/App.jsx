@@ -147,7 +147,7 @@ export default function App() {
   
   const [newVehicle, setNewVehicle] = useState({
     customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Normal", 
-    color: "", location: "", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação",
+    color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação",
     selectedServices: [], customPieceText: "", photos: {} 
   });
 
@@ -375,7 +375,7 @@ export default function App() {
 
     const { data } = await supabase.from('autoprime_vehicles').insert([{
       customer_name: newVehicle.customerName, phone: newVehicle.phone, brand: newVehicle.brand, model: newVehicle.model,
-      license_plate: newVehicle.licensePlate, color: newVehicle.color, entry_time: new Date().toLocaleString('pt-BR'),
+      license_plate: newVehicle.license_plate, color: newVehicle.color, entry_time: new Date().toLocaleString('pt-BR'),
       service_description: desc, status: 'active', work_status: newVehicle.workStatus, price: Number(newVehicle.price),
       cost: Number(newVehicle.cost), tenant_id: currentTenantId, photos: newVehicle.photos, vehicle_type: newVehicle.type,
       location: newVehicle.location, professional: newVehicle.professional
@@ -384,7 +384,7 @@ export default function App() {
     if (data) {
       setVehicles([data[0], ...vehicles]);
       setIsModalOpen(false);
-      setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Normal", color: "", location: "", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação", selectedServices: [], customPieceText: "", photos: {} });
+      setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Normal", color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação", selectedServices: [], customPieceText: "", photos: {} });
       showNotification("Veículo registrado com sucesso!");
     }
   };
@@ -723,7 +723,28 @@ export default function App() {
                 <Input label="Custo Material" type="number" value={newVehicle.cost} onChange={e => setNewVehicle({...newVehicle, cost: e.target.value})} placeholder="Ex: 450" required />
                 <Input label="Cor" value={newVehicle.color} onChange={e => setNewVehicle({...newVehicle, color: e.target.value})} placeholder="Ex: Cinza Nardo" required />
                 <Input label="Profissional" value={newVehicle.professional} onChange={e => setNewVehicle({...newVehicle, professional: e.target.value})} placeholder="Ex: Ricardo Silva" required />
-                <Input label="Vaga / Local" value={newVehicle.location} onChange={e => setNewVehicle({...newVehicle, location: e.target.value})} placeholder="Ex: Vaga 01" />
+                
+                {/* CAMPO DE VAGA / LOCAL RESTAURADO PARA SELEÇÃO DE BOX */}
+                <div className="flex flex-col gap-1.5 w-full">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Vaga / Local (BOX)</label>
+                    <select 
+                        className="bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-orange-600 transition-colors text-sm cursor-pointer" 
+                        value={newVehicle.location} 
+                        onChange={e => setNewVehicle({...newVehicle, location: e.target.value})}
+                    >
+                        <option value="BOX 01">BOX 01</option>
+                        <option value="BOX 02">BOX 02</option>
+                        <option value="BOX 03">BOX 03</option>
+                        <option value="BOX 04">BOX 04</option>
+                        <option value="BOX 05">BOX 05</option>
+                        <option value="BOX 06">BOX 06</option>
+                        <option value="BOX 07">BOX 07</option>
+                        <option value="BOX 08">BOX 08</option>
+                        <option value="BOX 09">BOX 09</option>
+                        <option value="BOX 10">BOX 10</option>
+                    </select>
+                </div>
+
                 <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-black uppercase text-zinc-500 ml-1 tracking-widest">Status Inicial</label>
                     <select className="bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-orange-600 text-sm" value={newVehicle.workStatus} onChange={e => setNewVehicle({...newVehicle, workStatus: e.target.value})} required>
