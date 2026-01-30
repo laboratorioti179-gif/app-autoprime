@@ -187,39 +187,52 @@ export default function App() {
       linkIcon.setAttribute('rel', 'apple-touch-icon');
       document.head.appendChild(linkIcon);
     }
-    // Ícone representativo para o atalho (Pincel/Oficina)
+    // Ícone representativo para o atalho (Oficial Auto Prime)
     linkIcon.setAttribute('href', 'https://cdn-icons-png.flaticon.com/512/3202/3202926.png');
 
-    // --- CARREGAMENTO DE SCRIPTS ---
-    const scriptSupabase = document.createElement('script');
-    scriptSupabase.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-    scriptSupabase.async = true;
-    scriptSupabase.onload = () => {
-      if (window.supabase) {
+    // --- CARREGAMENTO DE SCRIPTS ROBUSTO (CORREÇÃO TELA BRANCA) ---
+    const initApp = async () => {
+      // Failsafe: se em 8 segundos não carregar, libera a tela de qualquer forma
+      const failsafe = setTimeout(() => {
+        setAuthLoading(false);
+      }, 8000);
+
+      const loadScript = (src) => new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+      });
+
+      // Carrega Supabase
+      const supabaseOk = await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+      if (supabaseOk && window.supabase) {
         const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         setSupabase(client);
+        
+        // Verifica sessão existente
         const savedAuth = localStorage.getItem('autoprime_session_active');
         const savedTenant = localStorage.getItem('autoprime_tenant_id');
         if (savedAuth === 'true' && savedTenant) {
           setCurrentTenantId(savedTenant);
           setIsAuthenticated(true);
         }
-        setAuthLoading(false);
       }
-    };
-    document.head.appendChild(scriptSupabase);
 
-    const scriptPDF = document.createElement('script');
-    scriptPDF.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    scriptPDF.async = true;
-    scriptPDF.onload = () => {
-        if (window.jspdf) window.jsPDF = window.jspdf.jsPDF;
-        const scriptTable = document.createElement('script');
-        scriptTable.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js';
-        scriptTable.async = true;
-        document.head.appendChild(scriptTable);
+      // Carrega Bibliotecas de PDF
+      const pdfOk = await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+      if (pdfOk && window.jspdf) {
+        window.jsPDF = window.jspdf.jsPDF;
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js');
+      }
+
+      clearTimeout(failsafe);
+      setAuthLoading(false);
     };
-    document.head.appendChild(scriptPDF);
+
+    initApp();
   }, []);
 
   useEffect(() => {
