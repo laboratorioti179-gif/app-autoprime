@@ -88,9 +88,10 @@ const Button = ({ children, onClick, variant = "primary", className = "", disabl
   );
 };
 
+// COMPONENTE DE INPUT AJUSTADO (Removido ml-1 do label para alinhamento perfeito)
 const Input = ({ label, icon: Icon, ...props }) => (
   <div className="flex flex-col gap-1.5 w-full">
-    {label && <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">{label}</label>}
+    {label && <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{label}</label>}
     <div className="relative group">
       {Icon && (
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-orange-600 transition-colors">
@@ -99,7 +100,7 @@ const Input = ({ label, icon: Icon, ...props }) => (
       )}
       <input 
         {...props} 
-        value={props.value ?? ""} 
+        value={props.value || ""} 
         className={`bg-zinc-800 border border-zinc-700 rounded-xl w-full py-2.5 text-white outline-none focus:border-orange-600 transition-colors ${Icon ? 'pl-11 pr-4' : 'px-4'}`}
       />
     </div>
@@ -123,7 +124,6 @@ export default function App() {
   const [dashboardFilter, setDashboardFilter] = useState('all');
   const [authMode, setAuthMode] = useState('login'); 
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
-  const [registerForm, setRegisterForm] = useState({ workshop_name: "", email: "", password: "", confirmPassword: "" });
   const [loginError, setLoginError] = useState("");
   const [notification, setNotification] = useState({ show: false, message: "", type: "success" });
 
@@ -372,14 +372,29 @@ export default function App() {
     });
   };
 
+  const updateServiceText = (index, newText) => {
+    const updated = [...serviceOptions];
+    updated[index] = newText;
+    setServiceOptions(updated);
+  };
+
+  const addQuickService = () => {
+    if (quickServiceText.trim()) {
+      const updated = [...serviceOptions, quickServiceText.trim()];
+      setServiceOptions(updated);
+      setNewVehicle(prev => ({ ...prev, selectedServices: [...prev.selectedServices, quickServiceText.trim()] }));
+      setQuickServiceText("");
+    }
+  };
+
   const handleAddVehicle = async (e) => {
     e.preventDefault();
     let desc = newVehicle.selectedServices.join(", ");
-    if (newVehicle.customPieceText && (newVehicle.selectedServices.includes("Polimento (Peça)") || newVehicle.selectedServices.includes("Pintura Peça"))) {
+    if (newVehicle.customPieceText && (newVehicle.selectedServices.some(s => s.toLowerCase().includes("peça")))) {
       desc += ` (${newVehicle.customPieceText})`;
     }
     const { data } = await supabase.from('autoprime_vehicles').insert([{
-      customer_name: newVehicle.customerName, phone: newVehicle.phone, brand: newVehicle.brand, model: newVehicle.model,
+      customer_name: newVehicle.customerName.trim(), phone: newVehicle.phone, brand: newVehicle.brand, model: newVehicle.model,
       license_plate: newVehicle.licensePlate, color: newVehicle.color, entry_time: new Date().toLocaleString('pt-BR'),
       service_description: desc, status: 'active', work_status: newVehicle.workStatus, price: Number(newVehicle.price),
       cost: Number(newVehicle.cost), tenant_id: currentTenantId, photos: newVehicle.photos, vehicle_type: newVehicle.type,
@@ -390,6 +405,15 @@ export default function App() {
       setIsModalOpen(false);
       setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Normal", color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação", selectedServices: [], customPieceText: "", photos: {} });
       showNotification("Veículo registrado com sucesso!");
+    }
+  };
+
+  const handlePhotoUpload = (pos, e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => { setNewVehicle(prev => ({ ...prev, photos: { ...prev.photos, [pos]: reader.result } })); };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -523,10 +547,10 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL NOVA ENTRADA - RESTAURADO COM O BOX CORRETAMENTE */}
+      {/* MODAL NOVA ENTRADA - RESTAURADO COM TODOS OS DETALHES DE DESCRIÇÃO E BOX */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-2 md:p-4">
-          <Card className="w-full max-w-2xl p-6 md:p-8 relative space-y-6 max-h-[95vh] overflow-y-auto">
+          <Card className="w-full max-w-2xl p-6 md:p-8 relative space-y-6 max-h-[95vh] overflow-y-auto no-scrollbar">
             <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
               <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">Nova Entrada</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white"><X size={24}/></button>
@@ -543,14 +567,14 @@ export default function App() {
                 <Input label="Profissional" value={newVehicle.professional} onChange={e => setNewVehicle({...newVehicle, professional: e.target.value})} placeholder="Ex: Ricardo Silva" required />
                 
                 <div className="flex flex-col gap-1.5 w-full">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Vaga / Local (BOX)</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Vaga / Local (BOX)</label>
                   <select className="bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-orange-600 transition-colors text-sm cursor-pointer" value={newVehicle.location} onChange={e => setNewVehicle({...newVehicle, location: e.target.value})}>
                     {["BOX 01", "BOX 02", "BOX 03", "BOX 04", "BOX 05", "BOX 06", "BOX 07", "BOX 08", "BOX 09", "BOX 10"].map(box => <option key={box} value={box}>{box}</option>)}
                   </select>
                 </div>
                 
                 <div className="flex flex-col gap-1.5 w-full">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Status Inicial</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Status Inicial</label>
                   <select className="bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-orange-600 text-sm" value={newVehicle.workStatus} onChange={e => setNewVehicle({...newVehicle, workStatus: e.target.value})} required>
                     <option value="Aguardando Aprovação">Orçamento (Aguardando Aprovação)</option>
                     <option value="Cadastrado">Confirmado (Pátio)</option>
@@ -558,6 +582,46 @@ export default function App() {
                   </select>
                 </div>
               </div>
+
+              {/* SEÇÃO DE DESCRIÇÃO / SERVIÇOS - RESTAURADA */}
+              <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest leading-none">Serviços Solicitados (Checklist)</label>
+                  </div>
+                  <div className="bg-zinc-800 border border-zinc-700 rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2 no-scrollbar shadow-inner">
+                    {serviceOptions.map((opt, idx) => (
+                        <div key={idx} className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${newVehicle.selectedServices.includes(opt) ? 'bg-orange-600/10 border-orange-600' : 'bg-zinc-900 border-zinc-800'}`}>
+                            <div onClick={() => toggleService(opt)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer ${newVehicle.selectedServices.includes(opt) ? 'bg-orange-600 border-orange-600' : 'border-zinc-700'}`}>
+                                {newVehicle.selectedServices.includes(opt) && <Check size={12} className="text-black" />}
+                            </div>
+                            <input className={`bg-transparent text-xs font-black uppercase italic w-full outline-none ${newVehicle.selectedServices.includes(opt) ? 'text-orange-500' : 'text-zinc-500 focus:text-white'}`} value={opt} onChange={(e) => updateServiceText(idx, e.target.value)} />
+                        </div>
+                    ))}
+                    <div className="flex items-center gap-2 px-4 py-2 bg-zinc-950 border border-zinc-800 border-dashed rounded-xl">
+                        <Plus size={16} className="text-zinc-600" />
+                        <input className="bg-transparent text-xs font-black uppercase italic w-full outline-none text-white placeholder:text-zinc-700" placeholder="Outro serviço..." value={quickServiceText} onChange={(e) => setQuickServiceText(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); addQuickService(); } }} />
+                    </div>
+                  </div>
+              </div>
+
+              {/* CAMPO EXTRA PARA PEÇA ESPECÍFICA - RESTAURADO */}
+              {(newVehicle.selectedServices.some(s => s.toLowerCase().includes("peça"))) && (
+                <Input label="Descreva qual a peça:" value={newVehicle.customPieceText} onChange={e => setNewVehicle({...newVehicle, customPieceText: e.target.value})} placeholder="Ex: Paralamas Dianteiro Esquerdo" required />
+              )}
+
+              {/* CHECKLIST DE FOTOS */}
+              <div className="space-y-3">
+                  <p className="text-[10px] font-black uppercase text-zinc-500 ml-1 tracking-widest">Fotos Check-list</p>
+                  <div className="grid grid-cols-5 gap-2">
+                      {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map(pos => (
+                        <div key={pos} onClick={() => document.getElementById(`photo-${pos}`).click()} className="aspect-square bg-zinc-800 rounded-xl border border-zinc-700 border-dashed flex items-center justify-center text-zinc-600 cursor-pointer overflow-hidden relative">
+                            {newVehicle.photos[pos] ? <img src={newVehicle.photos[pos]} className="w-full h-full object-cover" /> : <Camera size={18} />}
+                            <input type="file" id={`photo-${pos}`} className="hidden" accept="image/*" onChange={(e) => handlePhotoUpload(pos, e)} />
+                        </div>
+                      ))}
+                  </div>
+              </div>
+
               <Button type="submit" className="w-full py-4 uppercase tracking-widest">Finalizar Registro</Button>
             </form>
           </Card>
@@ -568,7 +632,6 @@ export default function App() {
       {viewingVehicle && (
         <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-2 md:p-4 overflow-y-auto">
           <Card className="w-full max-w-4xl bg-zinc-950 border-none rounded-[32px] overflow-hidden my-auto shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-            {/* CABEÇALHO LARANJA */}
             <div className="bg-orange-600 p-8 flex justify-between items-start relative">
                 <div className="relative z-10">
                     <h2 className="text-3xl font-black text-black uppercase italic leading-none tracking-tighter">
@@ -583,18 +646,13 @@ export default function App() {
                         </p>
                     </div>
                 </div>
-                <button 
-                  onClick={() => setViewingVehicle(null)} 
-                  className="bg-black/10 hover:bg-black/20 p-2 rounded-full text-black transition-colors"
-                >
+                <button onClick={() => setViewingVehicle(null)} className="bg-black/10 hover:bg-black/20 p-2 rounded-full text-black transition-colors">
                   <X size={24}/>
                 </button>
             </div>
 
-            {/* CORPO DA FICHA */}
             <div className="p-8 grid md:grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto no-scrollbar">
                 <div className="space-y-6">
-                    {/* INFORMAÇÕES DO CLIENTE */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
                             <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1"><User size={10}/> Cliente</p>
@@ -606,7 +664,6 @@ export default function App() {
                         </div>
                     </div>
 
-                    {/* LOCALIZAÇÃO E PROFISSIONAL */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
                             <p className="text-[8px] font-black text-orange-500 uppercase tracking-widest mb-1 flex items-center gap-1"><MapPin size={10}/> Vaga / Local</p>
@@ -618,7 +675,6 @@ export default function App() {
                         </div>
                     </div>
 
-                    {/* ENTRADA E STATUS */}
                     <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex justify-between items-center">
                         <div>
                             <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1"><Clock size={10}/> Entrada no Sistema</p>
@@ -630,7 +686,6 @@ export default function App() {
                         </div>
                     </div>
 
-                    {/* SERVIÇOS CONTRATADOS */}
                     <div className="p-6 bg-zinc-900/80 border border-orange-600/20 rounded-[24px] space-y-4">
                         <p className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] border-b border-zinc-800 pb-3">Resumo dos Serviços</p>
                         <p className="text-white font-bold italic text-sm leading-relaxed">
@@ -638,7 +693,6 @@ export default function App() {
                         </p>
                     </div>
 
-                    {/* VALOR TOTAL E DOWNLOAD */}
                     <div className="flex items-center justify-between p-6 bg-orange-600/5 border border-orange-600/20 rounded-[24px]">
                         <div>
                             <p className="text-[9px] text-zinc-500 font-black uppercase tracking-widest mb-1">Valor do Orçamento</p>
@@ -646,16 +700,12 @@ export default function App() {
                                 R$ {Number(viewingVehicle.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </p>
                         </div>
-                        <button 
-                          onClick={() => generateBudgetPDF(viewingVehicle)}
-                          className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-300 transition-all border border-zinc-700 font-black text-[10px] uppercase tracking-widest"
-                        >
+                        <button onClick={() => generateBudgetPDF(viewingVehicle)} className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-300 transition-all border border-zinc-700 font-black text-[10px] uppercase tracking-widest">
                           <Download size={16}/> PDF
                         </button>
                     </div>
                 </div>
 
-                {/* GRADE DE FOTOS COM ETIQUETAS */}
                 <div className="grid grid-cols-2 gap-3">
                     {[
                       { key: 'TETO', pos: 'Teto' },
@@ -664,10 +714,7 @@ export default function App() {
                       { key: 'LADO D', pos: 'Lado D' },
                       { key: 'LADO E', pos: 'Lado E' }
                     ].map((item, idx) => (
-                      <div 
-                        key={idx} 
-                        className={`aspect-[4/3] bg-zinc-900 rounded-2xl overflow-hidden relative border border-white/5 group ${item.key === 'LADO E' ? 'col-span-2 aspect-[16/6]' : ''}`}
-                      >
+                      <div key={idx} className={`aspect-[4/3] bg-zinc-900 rounded-2xl overflow-hidden relative border border-white/5 group ${item.key === 'LADO E' ? 'col-span-2 aspect-[16/6]' : ''}`}>
                         {viewingVehicle.photos?.[item.pos] ? (
                           <img src={viewingVehicle.photos[item.pos]} className="w-full h-full object-cover" alt={item.key} />
                         ) : (
