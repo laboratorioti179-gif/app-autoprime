@@ -387,6 +387,20 @@ export default function App() {
     }
   };
 
+  const saveFixedCosts = async () => {
+    const payload = { 
+      tenant_id: currentTenantId, 
+      aluguel: Number(fixedCosts.aluguel) || 0, 
+      material: Number(fixedCosts.material) || 0, 
+      funcionario: Number(fixedCosts.funcionario) || 0, 
+      agua: Number(fixedCosts.agua) || 0, 
+      luz: Number(fixedCosts.luz) || 0, 
+      internet: Number(fixedCosts.internet) || 0 
+    };
+    await supabase.from('autoprime_fixed_costs').upsert(payload, { onConflict: 'tenant_id' });
+    showNotification("Financeiro atualizado!");
+  };
+
   const handleAddVehicle = async (e) => {
     e.preventDefault();
     let desc = newVehicle.selectedServices.join(", ");
@@ -528,7 +542,36 @@ export default function App() {
         {activeTab === 'finance' && (
           <div className="p-6 space-y-8 animate-in zoom-in-95 duration-300">
             <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Financeiro</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6"><Card className="p-6 border-l-4 border-l-orange-500"><p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Faturamento</p><p className="text-2xl font-black text-white">R$ {finance.rev.toLocaleString()}</p></Card><Card className="p-6 border-l-4 border-l-red-500"><p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Custos Fixos</p><p className="text-2xl font-black text-red-500">R$ {finance.exp.toLocaleString()}</p></Card><Card className="p-6 border-l-4 border-l-emerald-500"><p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Lucro Estimado</p><p className="text-2xl font-black text-emerald-500">R$ {finance.profit.toLocaleString()}</p></Card></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="p-6 border-l-4 border-l-orange-500">
+                <p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Faturamento</p>
+                <p className="text-2xl font-black text-white">R$ {finance.rev.toLocaleString()}</p>
+              </Card>
+              <Card className="p-6 border-l-4 border-l-red-500">
+                <p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Custos Fixos</p>
+                <p className="text-2xl font-black text-red-500">R$ {finance.exp.toLocaleString()}</p>
+              </Card>
+              <Card className="p-6 border-l-4 border-l-emerald-500">
+                <p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Lucro Estimado</p>
+                <p className="text-2xl font-black text-emerald-500">R$ {finance.profit.toLocaleString()}</p>
+              </Card>
+            </div>
+
+            {/* GESTÃO DE CUSTOS MENSAIS RESTAURADA */}
+            <Card className="p-8 space-y-6">
+              <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2">Gestão de Custos Mensais</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Input label="Aluguel" type="number" value={fixedCosts.aluguel} onChange={e => setFixedCosts({...fixedCosts, aluguel: e.target.value})}/>
+                <Input label="Material" type="number" value={fixedCosts.material} onChange={e => setFixedCosts({...fixedCosts, material: e.target.value})}/>
+                <Input label="Funcionários" type="number" value={fixedCosts.funcionario} onChange={e => setFixedCosts({...fixedCosts, funcionario: e.target.value})}/>
+                <Input label="Energia / Luz" type="number" value={fixedCosts.luz} onChange={e => setFixedCosts({...fixedCosts, luz: e.target.value})}/>
+                <Input label="Água" type="number" value={fixedCosts.agua} onChange={e => setFixedCosts({...fixedCosts, agua: e.target.value})}/>
+                <Input label="Internet" type="number" value={fixedCosts.internet} onChange={e => setFixedCosts({...fixedCosts, internet: e.target.value})}/>
+              </div>
+              <Button onClick={saveFixedCosts} className="w-full py-4 uppercase font-black italic tracking-widest flex items-center justify-center gap-2">
+                <Save size={18} /> Atualizar Financeiro
+              </Button>
+            </Card>
           </div>
         )}
         {activeTab === 'profile' && (
