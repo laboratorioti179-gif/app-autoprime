@@ -88,7 +88,6 @@ const Button = ({ children, onClick, variant = "primary", className = "", disabl
   );
 };
 
-// COMPONENTE DE INPUT AJUSTADO (Removido ml-1 do label para alinhamento perfeito)
 const Input = ({ label, icon: Icon, ...props }) => (
   <div className="flex flex-col gap-1.5 w-full">
     {label && <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{label}</label>}
@@ -356,7 +355,15 @@ export default function App() {
     const isDone = newWorkStatus === 'Concluído';
     const polDate = isDone ? new Date(new Date().setDate(new Date().getDate() + 30)).toISOString() : null;
     const upd = { work_status: newWorkStatus, status: isDone ? 'done' : 'active', polishing_date: polDate };
+    
+    // Atualiza estado local de veículos
     setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd } : v));
+    
+    // Se o modal estiver aberto, atualiza o veículo visualizado na hora
+    if (viewingVehicle && viewingVehicle.id === id) {
+      setViewingVehicle(prev => ({ ...prev, ...upd }));
+    }
+    
     await supabase.from('autoprime_vehicles').update(upd).eq('id', id);
   };
 
@@ -410,7 +417,7 @@ export default function App() {
     const { data } = await supabase.from('autoprime_vehicles').insert([{
       customer_name: newVehicle.customerName.trim(), phone: newVehicle.phone, brand: newVehicle.brand, model: newVehicle.model,
       license_plate: newVehicle.licensePlate, color: newVehicle.color, entry_time: new Date().toLocaleString('pt-BR'),
-      service_description: desc, status: 'active', work_status: newVehicle.workStatus, price: Number(newVehicle.price),
+      service_description: desc, status: newVehicle.workStatus === 'Concluído' ? 'done' : 'active', work_status: newVehicle.workStatus, price: Number(newVehicle.price),
       cost: Number(newVehicle.cost), tenant_id: currentTenantId, photos: newVehicle.photos, vehicle_type: newVehicle.type,
       location: newVehicle.location, professional: newVehicle.professional
     }]).select();
@@ -542,22 +549,7 @@ export default function App() {
         {activeTab === 'finance' && (
           <div className="p-6 space-y-8 animate-in zoom-in-95 duration-300">
             <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Financeiro</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="p-6 border-l-4 border-l-orange-500">
-                <p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Faturamento</p>
-                <p className="text-2xl font-black text-white">R$ {finance.rev.toLocaleString()}</p>
-              </Card>
-              <Card className="p-6 border-l-4 border-l-red-500">
-                <p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Custos Fixos</p>
-                <p className="text-2xl font-black text-red-500">R$ {finance.exp.toLocaleString()}</p>
-              </Card>
-              <Card className="p-6 border-l-4 border-l-emerald-500">
-                <p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Lucro Estimado</p>
-                <p className="text-2xl font-black text-emerald-500">R$ {finance.profit.toLocaleString()}</p>
-              </Card>
-            </div>
-
-            {/* GESTÃO DE CUSTOS MENSAIS RESTAURADA */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6"><Card className="p-6 border-l-4 border-l-orange-500"><p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Faturamento</p><p className="text-2xl font-black text-white">R$ {finance.rev.toLocaleString()}</p></Card><Card className="p-6 border-l-4 border-l-red-500"><p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Custos Fixos</p><p className="text-2xl font-black text-red-500">R$ {finance.exp.toLocaleString()}</p></Card><Card className="p-6 border-l-4 border-l-emerald-500"><p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Lucro Estimado</p><p className="text-2xl font-black text-emerald-500">R$ {finance.profit.toLocaleString()}</p></Card></div>
             <Card className="p-8 space-y-6">
               <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2">Gestão de Custos Mensais</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -590,7 +582,7 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL NOVA ENTRADA - RESTAURADO COM TODOS OS DETALHES DE DESCRIÇÃO E BOX */}
+      {/* MODAL NOVA ENTRADA - RESTAURADO COM TODOS OS STATUS DISPONÍVEIS NO DROPDOWN */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-2 md:p-4">
           <Card className="w-full max-w-2xl p-6 md:p-8 relative space-y-6 max-h-[95vh] overflow-y-auto no-scrollbar">
@@ -619,14 +611,14 @@ export default function App() {
                 <div className="flex flex-col gap-1.5 w-full">
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Status Inicial</label>
                   <select className="bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-orange-600 text-sm" value={newVehicle.workStatus} onChange={e => setNewVehicle({...newVehicle, workStatus: e.target.value})} required>
-                    <option value="Aguardando Aprovação">Orçamento (Aguardando Aprovação)</option>
-                    <option value="Cadastrado">Confirmado (Pátio)</option>
-                    <option value="In Work">Em Trabalho</option>
+                    <option value="Aguardando Aprovação">Aguardando Aprovação</option>
+                    <option value="Cadastrado">Cadastrado</option>
+                    <option value="In Work">In Work</option>
+                    <option value="Concluído">Concluído</option>
                   </select>
                 </div>
               </div>
 
-              {/* SEÇÃO DE DESCRIÇÃO / SERVIÇOS - RESTAURADA */}
               <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest leading-none">Serviços Solicitados (Checklist)</label>
@@ -647,12 +639,10 @@ export default function App() {
                   </div>
               </div>
 
-              {/* CAMPO EXTRA PARA PEÇA ESPECÍFICA - RESTAURADO */}
               {(newVehicle.selectedServices.some(s => s.toLowerCase().includes("peça"))) && (
                 <Input label="Descreva qual a peça:" value={newVehicle.customPieceText} onChange={e => setNewVehicle({...newVehicle, customPieceText: e.target.value})} placeholder="Ex: Paralamas Dianteiro Esquerdo" required />
               )}
 
-              {/* CHECKLIST DE FOTOS */}
               <div className="space-y-3">
                   <p className="text-[10px] font-black uppercase text-zinc-500 ml-1 tracking-widest">Fotos Check-list</p>
                   <div className="grid grid-cols-5 gap-2">
@@ -671,7 +661,7 @@ export default function App() {
         </div>
       )}
 
-      {/* VIEW VEHICLE MODAL - FICHA COMPLETA COM TODOS OS DETALHES */}
+      {/* VIEW VEHICLE MODAL - FICHA COMPLETA COM SELETOR DE STATUS FUNCIONAL */}
       {viewingVehicle && (
         <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-2 md:p-4 overflow-y-auto">
           <Card className="w-full max-w-4xl bg-zinc-950 border-none rounded-[32px] overflow-hidden my-auto shadow-[0_0_50px_rgba(0,0,0,0.5)]">
@@ -696,6 +686,22 @@ export default function App() {
 
             <div className="p-8 grid md:grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto no-scrollbar">
                 <div className="space-y-6">
+                    {/* BARRA DE ALTERAÇÃO DE STATUS DENTRO DA FICHA (ARRUMADO) */}
+                    <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl space-y-3">
+                        <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1">Alterar Status Atual</p>
+                        <div className="flex gap-1 overflow-x-auto no-scrollbar bg-zinc-950 p-1 rounded-xl">
+                            {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
+                                <button 
+                                    key={st} 
+                                    onClick={() => updateWorkStatus(viewingVehicle.id, st)}
+                                    className={`whitespace-nowrap px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all flex-1 ${viewingVehicle.work_status === st ? 'bg-orange-600 text-black italic' : 'text-zinc-600 hover:text-white hover:bg-zinc-800'}`}
+                                >
+                                    {st}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
                             <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1"><User size={10}/> Cliente</p>
@@ -722,10 +728,6 @@ export default function App() {
                         <div>
                             <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1"><Clock size={10}/> Entrada no Sistema</p>
                             <p className="text-white font-bold text-xs">{viewingVehicle.entry_time}</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Status Atual</p>
-                            <span className="text-[9px] px-2 py-0.5 rounded font-black bg-orange-600/10 text-orange-600 border border-orange-600/20 uppercase">{viewingVehicle.work_status}</span>
                         </div>
                     </div>
 
