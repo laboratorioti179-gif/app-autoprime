@@ -388,6 +388,74 @@ export default function App() {
 
   const polishingListMemo = useMemo(() => vehicles.filter(v => v.polishing_date).sort((a, b) => new Date(a.polishing_date) - new Date(b.polishing_date)), [vehicles]);
 
+  // --- ALTERAÇÃO: TELA PÚBLICA DE STATUS ---
+  if (isPublicView) {
+    if (!publicVehicle) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando dados...</div>;
+    
+    const stages = ['Lixamento', 'Fundo', 'Pintura', 'Secagem'];
+    const currentIdx = stages.indexOf(publicVehicle.current_stage);
+
+    return (
+      <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center justify-center font-sans overflow-hidden">
+        <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in-95 duration-700">
+           
+           {/* Cabeçalho Público */}
+           <div className="text-center space-y-4">
+              <div className="inline-block p-4 bg-orange-600 rounded-[2rem] text-black shadow-2xl shadow-orange-600/20 rotate-12">
+                <Car size={32} strokeWidth={3}/>
+              </div>
+              <h1 className="text-3xl font-black italic uppercase tracking-tighter">Auto<span className="text-orange-600">Prime</span></h1>
+              <div className="h-px w-12 bg-zinc-800 mx-auto"></div>
+           </div>
+
+           {/* Card de Status */}
+           <Card className="p-8 border-t-8 border-t-orange-600 bg-zinc-900/50 backdrop-blur-xl">
+              <div className="space-y-6 text-center">
+                 <div>
+                    <h2 className="text-2xl font-black uppercase italic tracking-tight">{publicVehicle.brand} {publicVehicle.model}</h2>
+                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] mt-2">{publicVehicle.license_plate} • {publicVehicle.color}</p>
+                 </div>
+
+                 <div className="py-6 px-4 bg-black/40 rounded-2xl border border-zinc-800/50">
+                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Status Atual</p>
+                    <p className="text-orange-500 text-lg font-black uppercase italic tracking-tighter">
+                      {publicVehicle.work_status === 'In Work' ? `Em Produção: ${publicVehicle.current_stage}` : publicVehicle.work_status}
+                    </p>
+                 </div>
+
+                 {publicVehicle.work_status === 'In Work' && (
+                    <div className="flex justify-between items-center px-2">
+                       {stages.map((st, i) => (
+                         <div key={st} className="flex flex-col items-center gap-2">
+                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-1000 ${i <= currentIdx ? 'bg-orange-600 border-orange-600 text-black shadow-lg shadow-orange-600/30' : 'bg-zinc-950 border-zinc-800 text-zinc-800'}`}>
+                               {i < currentIdx ? <Check size={14} strokeWidth={4}/> : <span className="text-[10px] font-black">{i + 1}</span>}
+                            </div>
+                            <span className={`text-[7px] font-black uppercase tracking-widest ${i <= currentIdx ? 'text-white' : 'text-zinc-700'}`}>{st}</span>
+                         </div>
+                       ))}
+                    </div>
+                 )}
+              </div>
+           </Card>
+
+           {/* Mensagem Criativa */}
+           <div className="text-center space-y-4 px-4">
+              <p className="text-zinc-400 text-sm font-medium italic leading-relaxed">
+                "A arte da perfeição exige paciência. Enquanto cuidamos de cada detalhe do seu veículo, sinta a tranquilidade de saber que ele está sendo transformado pelo padrão AutoPrime."
+              </p>
+              <div className="flex items-center justify-center gap-2 text-[9px] font-black text-zinc-600 uppercase tracking-widest">
+                 <Sparkles size={12} className="text-orange-600"/> Elevando o padrão estético
+              </div>
+           </div>
+
+           <button onClick={() => window.location.reload()} className="w-full py-4 text-zinc-700 text-[10px] font-black uppercase tracking-[0.4em] flex items-center justify-center gap-2 hover:text-white transition-all">
+             <RotateCcw size={14}/> Sincronizar Agora
+           </button>
+        </div>
+      </div>
+    );
+  }
+
   const SidebarContent = () => (
     <>
       <div className="flex items-center gap-2 mb-8 px-2">
