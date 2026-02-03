@@ -463,7 +463,6 @@ export default function App() {
     );
   }, [inventory, inventorySearch]);
 
-  // Filtro de logs específicos para o veículo sendo visualizado
   const vehicleInventoryLogs = useMemo(() => {
     if (!viewingVehicle) return [];
     const targetInfo = `${viewingVehicle.brand} ${viewingVehicle.model} (${viewingVehicle.license_plate})`;
@@ -643,7 +642,10 @@ export default function App() {
 
             {activeTab === 'inventory' && (
               <div className="max-w-3xl mx-auto space-y-6">
-                <div className="flex justify-between items-center"><h2 className="text-lg font-black text-white uppercase italic">Estoque</h2><Button onClick={() => setIsInventoryModalOpen(true)}><Plus size={16}/> Novo Item</Button></div>
+                <div className="flex justify-between items-center">
+                  <h2 className="text-lg font-black text-white uppercase italic">Estoque</h2>
+                  <Button onClick={() => setIsInventoryModalOpen(true)}><Plus size={16}/> Novo Item</Button>
+                </div>
                 <Card className="p-4 border-l-4 border-l-blue-600 bg-zinc-900/40">
                   <div className="flex items-center gap-3">
                     <div className="bg-blue-600/10 p-2 rounded-lg text-blue-500"><DollarSign size={16}/></div>
@@ -787,38 +789,107 @@ export default function App() {
 
           {isModalOpen && (
             <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
-              <Card className="w-full max-w-2xl p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl">
+              <Card className="w-full max-w-4xl p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl my-8">
                 <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"><X size={20}/></button>
-                <form onSubmit={handleAddVehicle} className="space-y-6">
-                   <h2 className="text-lg font-black text-white uppercase italic border-b border-zinc-900 pb-4 tracking-tighter">Vistoria de Entrada</h2>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input label="Cliente" value={newVehicle.customerName} onChange={e => setNewVehicle({...newVehicle, customerName: e.target.value})} required />
-                      <Input label="Contacto" value={newVehicle.phone} onChange={e => setNewVehicle({...newVehicle, phone: e.target.value})} required />
-                      <Input label="Marca" value={newVehicle.brand} onChange={e => setNewVehicle({...newVehicle, brand: e.target.value})} required />
-                      <Input label="Modelo" value={newVehicle.model} onChange={e => setNewVehicle({...newVehicle, model: e.target.value})} required />
-                      <Input label="Placa" value={newVehicle.licensePlate} onChange={e => setNewVehicle({...newVehicle, licensePlate: e.target.value.toUpperCase()})} required />
-                      <Input label="Cor" value={newVehicle.color} onChange={e => setNewVehicle({...newVehicle, color: e.target.value})} required />
-                      <Input label="Valor (R$)" value={newVehicle.price} onChange={e => setNewVehicle({...newVehicle, price: e.target.value})} required />
+                <form onSubmit={handleAddVehicle} className="space-y-8">
+                   <h2 className="text-lg font-black text-white uppercase italic border-b border-zinc-900 pb-4 tracking-tighter">Vistoria de Entrada Completa</h2>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-4">
+                         <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic">Dados do Cliente</p>
+                         <Input label="Cliente" value={newVehicle.customerName} onChange={e => setNewVehicle({...newVehicle, customerName: e.target.value})} required />
+                         <Input label="Contacto" value={newVehicle.phone} onChange={e => setNewVehicle({...newVehicle, phone: e.target.value})} required />
+                         <div className="flex flex-col gap-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">Horário de Entrada</label>
+                            <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white font-mono flex items-center gap-2">
+                               <Clock size={12} className="text-orange-600"/> {new Date().toLocaleTimeString('pt-BR')}
+                            </div>
+                         </div>
+                      </div>
+                      <div className="space-y-4">
+                         <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic">Dados do Veículo</p>
+                         <Input label="Marca" value={newVehicle.brand} onChange={e => setNewVehicle({...newVehicle, brand: e.target.value})} required />
+                         <Input label="Modelo" value={newVehicle.model} onChange={e => setNewVehicle({...newVehicle, model: e.target.value})} required />
+                         <Input label="Placa" value={newVehicle.licensePlate} onChange={e => setNewVehicle({...newVehicle, licensePlate: e.target.value.toUpperCase()})} required />
+                         <Input label="Cor" value={newVehicle.color} onChange={e => setNewVehicle({...newVehicle, color: e.target.value})} required />
+                      </div>
+                      <div className="space-y-4">
+                         <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic">Configurações Técnicas</p>
+                         <div className="flex flex-col gap-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">Tipo do Veículo</label>
+                            <select 
+                               className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-orange-600 transition-all"
+                               value={newVehicle.type} 
+                               onChange={e => setNewVehicle({...newVehicle, type: e.target.value})}
+                            >
+                               <option value="Normal">Sedan / Hatch (Normal)</option>
+                               <option value="SUV">SUV / Jipe</option>
+                               <option value="Pick-up">Pick-up / Carrinha</option>
+                               <option value="Comercial">Furgão / Comercial</option>
+                               <option value="Moto">Mota / Motociclo</option>
+                            </select>
+                         </div>
+                         <div className="flex flex-col gap-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">Localização (BOX)</label>
+                            <select 
+                               className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-orange-600 transition-all"
+                               value={newVehicle.location} 
+                               onChange={e => setNewVehicle({...newVehicle, location: e.target.value})}
+                            >
+                               {["BOX 01", "BOX 02", "BOX 03", "BOX 04", "BOX 05", "BOX 06", "BOX 07", "BOX 08", "BOX 09", "BOX 10"].map(box => (
+                                 <option key={box} value={box}>{box}</option>
+                               ))}
+                            </select>
+                         </div>
+                         <Input label="Técnico Responsável" value={newVehicle.professional} onChange={e => setNewVehicle({...newVehicle, professional: e.target.value})} />
+                         <Input label="Valor Cobrado (R$)" value={newVehicle.price} onChange={e => setNewVehicle({...newVehicle, price: e.target.value})} required />
+                      </div>
                    </div>
-                   <Button type="submit" className="w-full py-3 tracking-[0.2em] italic font-black">Registar Entrada</Button>
-                </form>
-              </Card>
-            </div>
-          )}
 
-          {isInventoryModalOpen && (
-            <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
-              <Card className="w-full max-w-sm p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl">
-                <button onClick={() => setIsInventoryModalOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"><X size={20}/></button>
-                <form onSubmit={handleAddItem} className="space-y-6">
-                   <h2 className="text-lg font-black text-white uppercase italic border-b border-zinc-900 pb-4 tracking-tighter">Novo Item no Estoque</h2>
-                   <div className="space-y-4">
-                      <Input label="Material" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} placeholder="Ex: Verniz" required />
-                      <Input label="Marca" value={newItem.brand} onChange={e => setNewItem({...newItem, brand: e.target.value})} placeholder="Ex: 3M" />
-                      <Input label="Quantidade" type="number" value={newItem.quantity} onChange={e => setNewItem({...newItem, quantity: e.target.value})} placeholder="Ex: 10" required />
-                      <Input label="Preço Unitário (R$)" type="number" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} placeholder="Ex: 45.00" required />
+                   <div className="space-y-4 p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
+                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic flex items-center gap-2"><Wrench size={14}/> Serviço Solicitado</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                         {serviceOptions.map(service => (
+                           <button 
+                             key={service} 
+                             type="button"
+                             onClick={() => {
+                               const current = newVehicle.selectedServices || [];
+                               const next = current.includes(service) ? current.filter(s => s !== service) : [...current, service];
+                               setNewVehicle({...newVehicle, selectedServices: next});
+                             }}
+                             className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase text-left transition-all border ${newVehicle.selectedServices?.includes(service) ? 'bg-orange-600 border-orange-600 text-black italic shadow-lg shadow-orange-600/20' : 'bg-zinc-950 border-zinc-900 text-zinc-600 hover:text-white'}`}
+                           >
+                             {service}
+                           </button>
+                         ))}
+                      </div>
+                      <Input label="Outro Serviço ou Peça Específica" placeholder="Descreva aqui..." value={newVehicle.customPieceText} onChange={e => setNewVehicle({...newVehicle, customPieceText: e.target.value})} />
                    </div>
-                   <Button type="submit" className="w-full py-3 tracking-[0.2em] italic font-black">Adicionar ao Stock</Button>
+
+                   <div className="space-y-4">
+                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic flex items-center gap-2"><Camera size={14}/> Seleção de Fotos (Vistoria)</p>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                         {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map(pos => (
+                           <div key={pos} className="relative aspect-square bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-xl flex items-center justify-center overflow-hidden hover:border-orange-600 transition-all group">
+                              {newVehicle.photos?.[pos] ? (
+                                <>
+                                  <img src={newVehicle.photos[pos]} className="w-full h-full object-cover" />
+                                  <button onClick={(e) => { e.stopPropagation(); setNewVehicle(prev => ({ ...prev, photos: { ...prev.photos, [pos]: null } })); }} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={20} className="text-red-500" /></button>
+                                </>
+                              ) : (
+                                <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center gap-2">
+                                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(pos, e)} />
+                                   <Camera size={20} className="text-zinc-800" />
+                                   <span className="text-[7px] font-black text-zinc-800 uppercase tracking-widest">{pos}</span>
+                                </label>
+                              )}
+                           </div>
+                         ))}
+                      </div>
+                   </div>
+
+                   <Button type="submit" className="w-full py-4 tracking-[0.3em] italic font-black text-sm">FINALIZAR E REGISTAR ENTRADA</Button>
                 </form>
               </Card>
             </div>
@@ -826,148 +897,237 @@ export default function App() {
 
           {viewingVehicle && (
             <div className="fixed inset-0 bg-black/98 z-[200] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
-              <Card className="w-full max-w-5xl bg-zinc-950 border-none rounded-[24px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+              <Card className="w-full max-w-6xl bg-[#0a0a0a] border-none rounded-[24px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+                {/* Header Estilizado conforme a imagem */}
                 <div className="bg-orange-600 p-6 flex justify-between items-start text-black">
                     <div>
                         <h2 className="text-2xl font-black uppercase italic leading-none tracking-tighter">FICHA TÉCNICA DO VEÍCULO</h2>
                         <p className="font-black uppercase text-[10px] tracking-widest mt-2 opacity-80 italic">Controlo de Ativos • AutoPrime Professional</p>
                     </div>
-                    <button onClick={() => setViewingVehicle(null)} className="bg-black/10 hover:bg-black/20 p-2 rounded-full text-black transition-all active:scale-90"><X size={20}/></button>
+                    <button onClick={() => setViewingVehicle(null)} className="bg-black/10 hover:bg-black/20 p-2 rounded-full text-black transition-all active:scale-90 shadow-lg">
+                      <X size={20} strokeWidth={3} />
+                    </button>
                 </div>
+
                 <div className="p-6 md:p-8 grid lg:grid-cols-2 gap-8 overflow-y-auto no-scrollbar max-h-[85vh]">
+                   {/* Coluna Esquerda: Dados e Ações */}
                    <div className="space-y-6">
                       
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Dono / Cliente</p>
-                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.customer_name}</p>
-                         </div>
-                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Telemóvel</p>
-                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.phone}</p>
-                         </div>
-                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Marca / Modelo</p>
-                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.brand} {viewingVehicle.model}</p>
-                         </div>
-                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Placa</p>
-                            <p className="text-orange-500 font-black uppercase text-[10px] italic truncate">{viewingVehicle.license_plate}</p>
-                         </div>
-                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Cor</p>
-                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.color}</p>
-                         </div>
-                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">BOX</p>
-                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.location}</p>
-                         </div>
-                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Técnico</p>
-                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.professional || "Não Atribuído"}</p>
-                         </div>
-                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Tipo</p>
-                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.vehicle_type || "Normal"}</p>
-                         </div>
-                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Entrada</p>
-                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.entry_time?.split(',')[0] || "---"}</p>
-                         </div>
+                      {/* Grid de Informações 3x3 */}
+                      <div className="grid grid-cols-3 gap-3">
+                         {[
+                            { label: "DONO / CLIENTE", value: viewingVehicle.customer_name },
+                            { label: "TELEMÓVEL", value: viewingVehicle.phone },
+                            { label: "MARCA / MODELO", value: `${viewingVehicle.brand} ${viewingVehicle.model}` },
+                            { label: "PLACA", value: viewingVehicle.license_plate, highlight: true },
+                            { label: "COR", value: viewingVehicle.color },
+                            { label: "BOX", value: viewingVehicle.location },
+                            { label: "TÉCNICO", value: viewingVehicle.professional || "Não Atribuído" },
+                            { label: "TIPO", value: viewingVehicle.vehicle_type || "Normal" },
+                            { label: "ENTRADA", value: viewingVehicle.entry_time?.split(',')[0] || "---" }
+                         ].map((item, idx) => (
+                           <div key={idx} className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-xl">
+                              <p className="text-[7px] font-black text-zinc-500 uppercase italic tracking-widest mb-1 leading-none">{item.label}</p>
+                              <p className={`font-bold uppercase text-[10px] truncate ${item.highlight ? 'text-orange-500 italic' : 'text-zinc-200'}`}>
+                                {item.value}
+                              </p>
+                           </div>
+                         ))}
                       </div>
 
-                      <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl space-y-4">
-                         <p className="text-[9px] font-black text-zinc-500 uppercase flex items-center gap-2 italic"><BoxSelect size={14} className="text-blue-500"/> Materiais Aplicados (Debitar Stock)</p>
-                         <form onSubmit={handleDebitMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <select className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-[10px] font-bold outline-none focus:border-blue-500" value={debitForm.inventoryId} onChange={e => setDebitForm({...debitForm, inventoryId: e.target.value})}>
+                      {/* Seção: Materiais Aplicados */}
+                      <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-4">
+                         <p className="text-[9px] font-black text-zinc-400 uppercase flex items-center gap-2 italic tracking-widest">
+                           <BoxSelect size={14} className="text-blue-500"/> MATERIAIS APLICADOS (DEBITAR STOCK)
+                         </p>
+                         <form onSubmit={handleDebitMaterial} className="flex gap-3">
+                            <select className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-[10px] font-bold outline-none focus:border-blue-500 appearance-none" value={debitForm.inventoryId} onChange={e => setDebitForm({...debitForm, inventoryId: e.target.value})}>
                                <option value="">Selecionar Item...</option>
-                               {inventory.map(item => <option key={item.id} value={item.id}>{item.name} ({item.quantity})</option>)}
+                               {inventory.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
                             </select>
-                            <input type="number" min="1" className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-[10px] font-bold" value={debitForm.quantity} onChange={e => setDebitForm({...debitForm, quantity: Number(e.target.value)})}/>
-                            <Button type="submit" variant="secondary" className="text-blue-500 border-blue-500/20 bg-blue-500/5 py-2">Debitar e Lançar</Button>
+                            <input type="number" min="1" className="w-20 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-[10px] font-bold text-center" value={debitForm.quantity} onChange={e => setDebitForm({...debitForm, quantity: Number(e.target.value)})}/>
+                            <button type="submit" className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black text-[9px] uppercase px-6 py-2.5 rounded-xl border border-zinc-700 transition-all active:scale-95 leading-tight">
+                              DEBITAR E <br/> LANÇAR
+                            </button>
                          </form>
                       </div>
 
-                      {/* NOVO: HISTÓRICO DE CONSUMO DO VEÍCULO */}
-                      {vehicleInventoryLogs.length > 0 && (
-                        <div className="p-4 bg-zinc-900/40 border border-zinc-800/60 rounded-xl space-y-3">
-                            <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2 italic leading-none"><History size={14} className="text-blue-400"/> Histórico de Consumo (Estoque)</p>
-                            <div className="max-h-32 overflow-y-auto pr-1 no-scrollbar space-y-2">
-                               {vehicleInventoryLogs.map((log) => (
-                                 <div key={log.id} className="bg-zinc-950/50 p-2 rounded-lg border border-zinc-900 flex justify-between items-center">
-                                    <div className="flex flex-col">
-                                       <span className="text-[9px] font-black text-white uppercase">{log.item_name}</span>
-                                       <span className="text-[7px] text-zinc-600 font-bold uppercase">{new Date(log.created_at).toLocaleDateString('pt-BR')}</span>
-                                    </div>
-                                    <div className="text-right">
-                                       <span className="text-[9px] font-black text-blue-500">-{log.quantity} un</span>
-                                    </div>
-                                 </div>
-                               ))}
-                            </div>
-                        </div>
-                      )}
-
-                      <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-3">
-                          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2 italic"><ClipboardList size={14}/> Serviços Solicitados</p>
-                          <div className="flex flex-wrap gap-2">
-                             {(viewingVehicle.service_description || "Nenhum serviço").split(',').map((serv, i) => (
-                               <span key={i} className="bg-zinc-950 border border-zinc-800 px-3 py-1.5 rounded-lg text-[9px] font-black text-zinc-400 uppercase tracking-tight flex items-center gap-1.5">
-                                  <Check size={10} className="text-orange-600"/> {serv.trim()}
-                               </span>
-                             ))}
+                      {/* Seção: Histórico de Consumo (ESTADO: ADICIONADO/CONFERIDO) */}
+                      <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
+                          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 italic leading-none">
+                            <History size={14} className="text-blue-400"/> HISTÓRICO DE CONSUMO (ESTOQUE)
+                          </p>
+                          <div className="space-y-2">
+                             {vehicleInventoryLogs.length > 0 ? vehicleInventoryLogs.map((log) => (
+                               <div key={log.id} className="bg-black/40 p-3 rounded-xl border border-zinc-900/50 flex justify-between items-center">
+                                  <div className="flex flex-col">
+                                     <span className="text-[9px] font-black text-zinc-300 uppercase tracking-wide">{log.item_name}</span>
+                                     <span className="text-[7px] text-zinc-600 font-bold uppercase">{new Date(log.created_at).toLocaleDateString('pt-BR')}</span>
+                                  </div>
+                                  <span className="text-[10px] font-black text-blue-500 italic">-{log.quantity} un</span>
+                               </div>
+                             )) : (
+                               <p className="text-[8px] text-zinc-700 font-black uppercase italic py-2 text-center tracking-widest">Nenhum registro de material</p>
+                             )}
                           </div>
                       </div>
 
-                      <div className="p-4 bg-orange-600/5 border border-orange-600/20 rounded-xl space-y-3">
-                          <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none"><Share2 size={12}/> Link de Acompanhamento (WhatsApp)</p>
-                          <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-lg border border-zinc-900">
-                             <input readOnly className="bg-transparent flex-1 px-3 text-[9px] text-zinc-500 font-mono outline-none truncate" value={`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`}/>
-                             <div className="flex gap-1">
-                                <button onClick={() => copyToClipboard(`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`)} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-md text-zinc-300 transition-all flex items-center justify-center gap-1.5 border border-zinc-700">
-                                   <Copy size={12}/> <span className="text-[8px] font-black uppercase italic">Copiar</span>
+                      {/* Seção: Serviços Solicitados (ESTADO: ADICIONADO) */}
+                      <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
+                          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 italic leading-none">
+                            <ClipboardList size={14} className="text-zinc-500"/> SERVIÇOS SOLICITADOS
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                             {viewingVehicle.service_description ? viewingVehicle.service_description.split(',').map((serv, i) => (
+                               <div key={i} className="bg-zinc-950 border border-zinc-800 px-4 py-2 rounded-xl text-[9px] font-black text-zinc-400 uppercase tracking-tight flex items-center gap-2">
+                                  <Check size={12} className="text-orange-600" strokeWidth={4}/> {serv.trim()}
+                               </div>
+                             )) : (
+                               <span className="text-[8px] text-zinc-700 font-black uppercase italic tracking-widest">Nenhum serviço registrado</span>
+                             )}
+                          </div>
+                      </div>
+
+                      {/* Seção: Link de Acompanhamento (ESTADO: ADICIONADO) */}
+                      <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
+                          <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none">
+                            <Share2 size={14}/> LINK DE ACOMPANHAMENTO (WHATSAPP)
+                          </p>
+                          <div className="flex gap-2 bg-black/40 p-2 rounded-xl border border-zinc-800">
+                             <input readOnly className="bg-transparent flex-1 px-3 text-[10px] text-zinc-500 font-mono outline-none truncate" value={`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`}/>
+                             <div className="flex gap-1.5">
+                                <button onClick={() => copyToClipboard(`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`)} className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-zinc-300 transition-all flex items-center gap-2 border border-zinc-700">
+                                   <Copy size={14}/> <span className="text-[9px] font-black uppercase italic tracking-wider">Copiar</span>
                                 </button>
-                                <button onClick={() => sendWhatsAppLink(viewingVehicle)} className="bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-md text-white transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/20">
-                                   <MessageCircle size={12}/> <span className="text-[8px] font-black uppercase italic">Enviar WhatsApp</span>
+                                <button onClick={() => sendWhatsAppLink(viewingVehicle)} className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-white transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20">
+                                   <MessageCircle size={14}/> <span className="text-[9px] font-black uppercase italic tracking-wider whitespace-nowrap">Enviar</span>
                                 </button>
                              </div>
                           </div>
                       </div>
 
-                      {viewingVehicle.work_status === 'In Work' && (
-                        <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-xl space-y-4">
-                           <p className="text-[9px] font-black text-orange-600 uppercase flex items-center gap-2 italic"><Layers size={14}/> Produção em Estufa</p>
-                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                              {['Funilaria', 'Preparação', 'Pintura', 'Polimento', 'Finalizado'].map(stage => (
-                                 <button key={stage} onClick={() => updateVehicleStage(viewingVehicle.id, stage)} className={`px-3 py-2.5 rounded-lg text-[9px] font-black uppercase transition-all border ${viewingVehicle.current_stage === stage ? 'bg-orange-600 border-orange-600 text-black italic' : 'bg-zinc-900 border-zinc-800 text-zinc-700 hover:text-white'}`}>
-                                    {stage}
-                                 </button>
-                              ))}
-                           </div>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-3 text-white">
-                         <div className="p-4 bg-emerald-600/5 border border-emerald-500/20 rounded-xl flex justify-between items-center">
-                            <div><p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest leading-none">Preço Orçado</p><p className="text-emerald-500 font-black text-xl italic tracking-tighter">R$ {Number(viewingVehicle.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p></div>
-                            <button onClick={() => generateBudgetPDF(viewingVehicle)} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg text-zinc-300 font-black text-[8px] uppercase tracking-widest flex items-center gap-2 border border-zinc-700 transition-all"><Download size={14}/> PDF</button>
+                      {/* Seção: Produção em Estufa */}
+                      <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-4">
+                         <p className="text-[9px] font-black text-zinc-400 uppercase flex items-center gap-2 italic tracking-widest leading-none">
+                           <Layers size={14} className="text-orange-600"/> PRODUÇÃO EM ESTUFA
+                         </p>
+                         <div className="grid grid-cols-5 gap-2">
+                            {['Funilaria', 'Preparação', 'Pintura', 'Polimento', 'Finalizado'].map(stage => (
+                               <button 
+                                 key={stage} 
+                                 onClick={() => updateVehicleStage(viewingVehicle.id, stage)} 
+                                 className={`px-1 py-3 rounded-xl text-[8px] font-black uppercase transition-all border ${viewingVehicle.current_stage === stage ? 'bg-orange-600 border-orange-600 text-black italic shadow-lg shadow-orange-600/30' : 'bg-black/50 border-zinc-800 text-zinc-600 hover:text-zinc-400'}`}
+                               >
+                                  {stage}
+                               </button>
+                            ))}
                          </div>
-                         <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest leading-none">Custo Material</p>
-                            <p className="text-zinc-400 font-bold text-lg italic tracking-tighter">R$ {Number(viewingVehicle.cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                      </div>
+
+                      {/* Seção Final: Valores (ESTADO: ADICIONADO/CONFERIDO CUSTO MATERIAL) */}
+                      <div className="grid grid-cols-2 gap-4">
+                         <div className="p-5 bg-emerald-600/5 border border-emerald-500/20 rounded-2xl flex justify-between items-center">
+                            <div>
+                              <p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest italic">Preço Orçado</p>
+                              <p className="text-emerald-500 font-black text-2xl italic tracking-tighter leading-none">
+                                R$ {Number(viewingVehicle.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
+                            </div>
+                            <button onClick={() => generateBudgetPDF(viewingVehicle)} className="bg-zinc-800/80 hover:bg-zinc-700 px-4 py-2.5 rounded-xl text-zinc-300 font-black text-[9px] uppercase tracking-widest flex items-center gap-2 border border-zinc-700 shadow-xl transition-all active:scale-95">
+                               <Download size={16}/> PDF
+                            </button>
+                         </div>
+                         <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl">
+                            <p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest italic leading-none">Custo Material</p>
+                            <p className="text-zinc-200 font-bold text-xl italic tracking-tighter mt-1">
+                              R$ {Number(viewingVehicle.cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
                          </div>
                       </div>
                    </div>
 
-                   <div className="grid grid-cols-2 gap-3 h-fit">
+                   {/* Coluna Direita: Fotos */}
+                   <div className="grid grid-cols-2 gap-4 h-fit sticky top-0">
                       {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map((item, idx) => (
-                        <div key={idx} className={`aspect-[4/3] bg-zinc-900 rounded-xl overflow-hidden relative border border-white/5 shadow-md ${idx === 4 ? 'col-span-2 aspect-[16/7]' : ''}`}>
-                          {viewingVehicle.photos?.[item] ? <img src={viewingVehicle.photos[item]} className="w-full h-full object-cover shadow-inner" /> : <div className="w-full h-full flex items-center justify-center text-zinc-800 flex-col gap-1.5"><ImageIcon size={24} className="opacity-20"/><span className="text-[7px] font-black uppercase tracking-widest">Sem Foto: {item}</span></div>}
-                          <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-2 py-1 rounded-md border border-white/10"><span className="text-[7px] font-black text-white uppercase tracking-widest italic">{item}</span></div>
+                        <div key={idx} className={`bg-zinc-900 rounded-[20px] overflow-hidden relative border border-zinc-800 shadow-2xl transition-all hover:border-orange-600/30 group ${idx === 4 ? 'col-span-2 aspect-[21/9]' : 'aspect-square'}`}>
+                          {viewingVehicle.photos?.[item] ? (
+                            <img src={viewingVehicle.photos[item]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-zinc-800 gap-2">
+                               <ImageIcon size={32} className="opacity-10" />
+                               <span className="text-[8px] font-black uppercase tracking-[0.2em] italic">SEM FOTO: {item}</span>
+                            </div>
+                          )}
+                          <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-zinc-800 shadow-lg">
+                            <span className="text-[8px] font-black text-white uppercase tracking-widest italic">{item}</span>
+                          </div>
                         </div>
                       ))}
                    </div>
                 </div>
+              </Card>
+            </div>
+          )}
+
+          {/* MODAL DE ESTOQUE */}
+          {isInventoryModalOpen && (
+            <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[300] flex items-center justify-center p-4">
+              <Card className="w-full max-w-md p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                <button 
+                  onClick={() => setIsInventoryModalOpen(false)} 
+                  className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"
+                >
+                  <X size={20}/>
+                </button>
+                <form onSubmit={handleAddItem} className="space-y-6">
+                   <div className="flex items-center gap-3 mb-2">
+                      <div className="bg-blue-600/20 p-2 rounded-lg text-blue-500">
+                         <Package size={20}/>
+                      </div>
+                      <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Cadastrar Novo Item</h2>
+                   </div>
+                   
+                   <div className="space-y-4">
+                      <Input 
+                        label="Nome do Material" 
+                        placeholder="Ex: Verniz PU, Lixa 600..." 
+                        value={newItem.name} 
+                        onChange={e => setNewItem({...newItem, name: e.target.value})} 
+                        required 
+                      />
+                      <Input 
+                        label="Marca / Fabricante" 
+                        placeholder="Ex: 3M, Norton..." 
+                        value={newItem.brand} 
+                        onChange={e => setNewItem({...newItem, brand: e.target.value})} 
+                        required 
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                         <Input 
+                           label="Quantidade Inicial" 
+                           type="number" 
+                           placeholder="0" 
+                           value={newItem.quantity} 
+                           onChange={e => setNewItem({...newItem, quantity: e.target.value})} 
+                           required 
+                         />
+                         <Input 
+                           label="Preço Unitário (R$)" 
+                           type="number" 
+                           step="0.01" 
+                           placeholder="0,00" 
+                           value={newItem.price} 
+                           onChange={e => setNewItem({...newItem, price: e.target.value})} 
+                           required 
+                         />
+                      </div>
+                   </div>
+
+                   <div className="flex gap-3 pt-2">
+                      <Button variant="outline" className="flex-1" onClick={() => setIsInventoryModalOpen(false)}>Cancelar</Button>
+                      <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700">Adicionar Item</Button>
+                   </div>
+                </form>
               </Card>
             </div>
           )}
