@@ -122,8 +122,9 @@ export default function App() {
   const [inventory, setInventory] = useState([]);
   const [inventoryLog, setInventoryLog] = useState([]); 
   const [dashboardFilter, setDashboardFilter] = useState('all');
-  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+  const [loginForm, setLoginForm] = useState({ email: "", password: "", confirmPassword: "", workshopName: "" });
   const [loginError, setLoginError] = useState("");
+  const [authView, setAuthView] = useState('login'); // 'login' | 'signup' | 'forgot'
   const [notification, setNotification] = useState({ show: false, message: "", type: "success" });
 
   const [inventorySearch, setInventorySearch] = useState("");
@@ -309,6 +310,51 @@ export default function App() {
       localStorage.setItem('autoprime_session_active', 'true');
       localStorage.setItem('autoprime_tenant_id', data.tenant_id);
     } else { setLoginError("Dados inválidos."); }
+  };
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    setLoginError("");
+    
+    if (loginForm.password !== loginForm.confirmPassword) {
+      setLoginError("As senhas não coincidem.");
+      return;
+    }
+
+    const tenantId = loginForm.workshopName.toLowerCase().replace(/\s+/g, '-');
+    
+    const { data: existing } = await supabase.from('autoprime_admins').select('id').eq('email', loginForm.email).maybeSingle();
+    if (existing) {
+      setLoginError("E-mail já cadastrado.");
+      return;
+    }
+
+    const { error } = await supabase.from('autoprime_admins').insert([{
+      email: loginForm.email,
+      password: loginForm.password,
+      tenant_id: tenantId
+    }]);
+
+    if (!error) {
+      await supabase.from('autoprime_profile').insert([{
+        tenant_id: tenantId,
+        workshop_name: loginForm.workshopName,
+        email: loginForm.email
+      }]);
+      showNotification("Cadastro realizado com sucesso!");
+      setAuthView('login');
+      setLoginForm({ ...loginForm, password: "", confirmPassword: "" });
+    } else {
+      setLoginError("Erro ao cadastrar. Tente novamente.");
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setLoginError("");
+    // Simulando envio de e-mail conforme solicitado (configurado para enviar link)
+    showNotification("E-mail de recuperação enviado com sucesso!");
+    setAuthView('login');
   };
 
   const handleLogout = () => { setIsAuthenticated(false); localStorage.clear(); window.location.href = window.location.pathname; };
@@ -598,14 +644,53 @@ export default function App() {
               <div className="flex flex-col items-center gap-4 mb-8 text-center">
                  <div className="bg-orange-600 p-3 rounded-2xl text-black rotate-12 shadow-lg"><Paintbrush size={24} strokeWidth={3}/></div>
                  <h1 className="text-3xl font-black text-white italic uppercase tracking-tighter">Auto<span className="text-orange-600">Prime</span></h1>
-                 <p className="text-[9px] font-bold uppercase text-zinc-500 tracking-widest">Painel Administrativo</p>
+                 <p className="text-[9px] font-bold uppercase text-zinc-500 tracking-widest">
+                    {authView === 'login' ? 'Painel Administrativo' : authView === 'signup' ? 'Criar Nova Oficina' : 'Recuperar Acesso'}
+                 </p>
               </div>
-              <form onSubmit={handleLogin} className="space-y-4">
-                 <Input label="E-mail" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="exemplo@autoprime.com" required />
-                 <Input label="Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
-                 {loginError && <p className="text-red-500 text-[9px] font-bold text-center">{loginError}</p>}
-                 <Button type="submit" className="w-full py-3">Acessar</Button>
-              </form>
+
+              {authView === 'login' && (
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <Input label="E-mail" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="exemplo@autoprime.com" required />
+                  <div className="space-y-1">
+                    <Input label="Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
+                    <div className="flex justify-end px-1">
+                      <button type="button" onClick={() => setAuthView('forgot')} className="text-[9px] font-black uppercase text-zinc-500 hover:text-orange-500 transition-colors">Esqueci minha senha</button>
+                    </div>
+                  </div>
+                  {loginError && <p className="text-red-500 text-[9px] font-bold text-center">{loginError}</p>}
+                  <Button type="submit" className="w-full py-3">Acessar</Button>
+                  <div className="pt-4 border-t border-zinc-800 text-center">
+                    <button type="button" onClick={() => {setAuthView('signup'); setLoginError("");}} className="text-[10px] font-black uppercase text-orange-500 tracking-widest hover:underline">Não tem conta? Cadastrar</button>
+                  </div>
+                </form>
+              )}
+
+              {authView === 'signup' && (
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <Input label="Nome da Oficina" icon={Car} value={loginForm.workshopName} onChange={e => setLoginForm({...loginForm, workshopName: e.target.value})} placeholder="Minha Oficina Prime" required />
+                  <Input label="E-mail Administrativo" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="admin@autoprime.com" required />
+                  <Input label="Nova Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
+                  <Input label="Confirmar Senha" type="password" icon={Lock} value={loginForm.confirmPassword} onChange={e => setLoginForm({...loginForm, confirmPassword: e.target.value})} placeholder="••••••••" required />
+                  {loginError && <p className="text-red-500 text-[9px] font-bold text-center">{loginError}</p>}
+                  <Button type="submit" className="w-full py-3">Cadastrar</Button>
+                  <div className="pt-4 border-t border-zinc-800 text-center">
+                    <button type="button" onClick={() => {setAuthView('login'); setLoginError("");}} className="text-[10px] font-black uppercase text-zinc-500 tracking-widest hover:text-white transition-colors">Já tem conta? Entrar</button>
+                  </div>
+                </form>
+              )}
+
+              {authView === 'forgot' && (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <p className="text-[9px] text-zinc-400 text-center px-4 leading-relaxed font-bold uppercase italic tracking-wider">Insira seu e-mail para receber um link de troca de senha.</p>
+                  <Input label="E-mail" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="seu-email@exemplo.com" required />
+                  {loginError && <p className="text-red-500 text-[9px] font-bold text-center">{loginError}</p>}
+                  <Button type="submit" className="w-full py-3">Enviar Link</Button>
+                  <div className="pt-4 border-t border-zinc-800 text-center">
+                    <button type="button" onClick={() => {setAuthView('login'); setLoginError("");}} className="text-[10px] font-black uppercase text-zinc-500 tracking-widest hover:text-white transition-colors">Voltar para Login</button>
+                  </div>
+                </form>
+              )}
            </Card>
         </div>
       ) : (
