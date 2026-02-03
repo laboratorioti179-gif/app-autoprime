@@ -43,7 +43,10 @@ import {
   Globe,
   FileText,
   Calendar,
-  Activity
+  Activity,
+  BoxSelect,
+  MinusCircle,
+  ArrowDownRight
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO SUPABASE ---
@@ -115,6 +118,7 @@ export default function App() {
 
   const [vehicles, setVehicles] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [inventoryLog, setInventoryLog] = useState([]); // Novo: Histórico de estoque
   const [dashboardFilter, setDashboardFilter] = useState('all');
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
@@ -150,6 +154,8 @@ export default function App() {
   });
 
   const [newItem, setNewItem] = useState({ name: "", brand: "", quantity: "", price: "" });
+
+  const [debitForm, setDebitForm] = useState({ inventoryId: "", quantity: 1 });
 
   const showNotification = (message, type = "success") => {
     setNotification({ show: true, message, type });
@@ -215,11 +221,13 @@ export default function App() {
     try {
       const { data: vData } = await supabase.from('autoprime_vehicles').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false });
       const { data: iData } = await supabase.from('autoprime_inventory').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false });
+      const { data: logData } = await supabase.from('autoprime_inventory_log').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false });
       const { data: fData } = await supabase.from('autoprime_fixed_costs').select('*').eq('tenant_id', currentTenantId).maybeSingle(); 
       const { data: pData } = await supabase.from('autoprime_profile').select('*').eq('tenant_id', currentTenantId).maybeSingle();
       
       if (vData) setVehicles(vData);
       if (iData) setInventory(iData);
+      if (logData) setInventoryLog(logData);
       if (fData) setFixedCosts(fData);
       if (pData) {
         setProfile(pData);
@@ -296,7 +304,7 @@ export default function App() {
       work_status: newStatus, 
       status: isDone ? 'done' : 'active', 
       polishing_date: polDate,
-      current_stage: newStatus === 'In Work' ? 'Lixamento' : null
+      current_stage: newStatus === 'In Work' ? 'Funilaria' : null
     };
     setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd } : v));
     if (viewingVehicle && viewingVehicle.id === id) setViewingVehicle(prev => ({ ...prev, ...upd }));
@@ -341,7 +349,7 @@ export default function App() {
       work_status: newVehicle.workStatus, price: Number(String(newVehicle.price).replace(',', '.')),
       cost: Number(String(newVehicle.cost).replace(',', '.')), tenant_id: currentTenantId,
       photos: newVehicle.photos, location: newVehicle.location, professional: newVehicle.professional,
-      vehicle_type: newVehicle.type || 'Normal', current_stage: newVehicle.workStatus === 'In Work' ? 'Lixamento' : null
+      vehicle_type: newVehicle.type || 'Normal', current_stage: newVehicle.workStatus === 'In Work' ? 'Funilaria' : null
     };
     
     const { data } = await supabase.from('autoprime_vehicles').insert([payload]).select();
@@ -370,6 +378,49 @@ export default function App() {
     }
   };
 
+  const handleDebitMaterial = async (e) => {
+    e.preventDefault();
+    if (!debitForm.inventoryId || debitForm.quantity <= 0) return;
+
+    const item = inventory.find(i => i.id === debitForm.inventoryId);
+    if (!item || item.quantity < debitForm.quantity) {
+      showNotification("Quantidade insuficiente em estoque!", "danger");
+      return;
+    }
+
+    const newQty = item.quantity - debitForm.quantity;
+    const materialCost = Number(item.price) * Number(debitForm.quantity);
+    const newVehicleCost = (Number(viewingVehicle.cost) || 0) + materialCost;
+
+    // 1. Debitar do Inventário
+    const { error: invError } = await supabase.from('autoprime_inventory').update({ quantity: newQty }).eq('id', item.id);
+    if (invError) return;
+
+    // 2. Atualizar custo no Veículo
+    const { error: vehError } = await supabase.from('autoprime_vehicles').update({ cost: newVehicleCost }).eq('id', viewingVehicle.id);
+    if (vehError) return;
+
+    // 3. Registrar no Histórico de Movimentação
+    const logEntry = {
+      tenant_id: currentTenantId,
+      item_name: item.name,
+      quantity: debitForm.quantity,
+      vehicle_info: `${viewingVehicle.brand} ${viewingVehicle.model} (${viewingVehicle.license_plate})`,
+      professional: viewingVehicle.professional || "Não Atribuído",
+      created_at: new Date().toISOString()
+    };
+    const { data: logData } = await supabase.from('autoprime_inventory_log').insert([logEntry]).select();
+
+    // 4. Atualizar estados locais
+    setInventory(inventory.map(i => i.id === item.id ? { ...i, quantity: newQty } : i));
+    setVehicles(vehicles.map(v => v.id === viewingVehicle.id ? { ...v, cost: newVehicleCost } : v));
+    setViewingVehicle({ ...viewingVehicle, cost: newVehicleCost });
+    if (logData) setInventoryLog([logData[0], ...inventoryLog]);
+    
+    setDebitForm({ inventoryId: "", quantity: 1 });
+    showNotification("Material debitado e histórico registado!");
+  };
+
   const activeVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'active'), [vehicles]);
   const historyVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'done'), [vehicles]);
   const financeMemo = useMemo(() => {
@@ -388,18 +439,21 @@ export default function App() {
 
   const polishingListMemo = useMemo(() => vehicles.filter(v => v.polishing_date).sort((a, b) => new Date(a.polishing_date) - new Date(b.polishing_date)), [vehicles]);
 
-  // --- ALTERAÇÃO: TELA PÚBLICA DE STATUS ---
+  const totalInventoryValue = useMemo(() => {
+    return inventory.reduce((acc, item) => acc + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
+  }, [inventory]);
+
+  // --- TELA PÚBLICA DE STATUS ---
   if (isPublicView) {
     if (!publicVehicle) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando dados...</div>;
     
-    const stages = ['Lixamento', 'Fundo', 'Pintura', 'Secagem'];
+    const stages = ['Funilaria', 'Preparação', 'Pintura', 'Polimento', 'Finalizado'];
     const currentIdx = stages.indexOf(publicVehicle.current_stage);
 
     return (
       <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center justify-center font-sans overflow-hidden">
         <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in-95 duration-700">
            
-           {/* Cabeçalho Público */}
            <div className="text-center space-y-4">
               <div className="inline-block p-4 bg-orange-600 rounded-[2rem] text-black shadow-2xl shadow-orange-600/20 rotate-12">
                 <Car size={32} strokeWidth={3}/>
@@ -408,7 +462,6 @@ export default function App() {
               <div className="h-px w-12 bg-zinc-800 mx-auto"></div>
            </div>
 
-           {/* Card de Status */}
            <Card className="p-8 border-t-8 border-t-orange-600 bg-zinc-900/50 backdrop-blur-xl">
               <div className="space-y-6 text-center">
                  <div>
@@ -438,7 +491,6 @@ export default function App() {
               </div>
            </Card>
 
-           {/* Mensagem Criativa */}
            <div className="text-center space-y-4 px-4">
               <p className="text-zinc-400 text-sm font-medium italic leading-relaxed">
                 "A arte da perfeição exige paciência. Enquanto cuidamos de cada detalhe do seu veículo, sinta a tranquilidade de saber que ele está sendo transformado pelo padrão AutoPrime."
@@ -594,6 +646,19 @@ export default function App() {
             {activeTab === 'inventory' && (
               <div className="max-w-3xl mx-auto space-y-6">
                 <div className="flex justify-between items-center"><h2 className="text-lg font-black text-white uppercase italic">Estoque</h2><Button onClick={() => setIsInventoryModalOpen(true)}><Plus size={16}/> Novo Item</Button></div>
+                
+                <Card className="p-4 border-l-4 border-l-blue-600 bg-zinc-900/40">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-600/10 p-2 rounded-lg text-blue-500">
+                       <DollarSign size={16}/>
+                    </div>
+                    <div>
+                       <p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest leading-none">Investimento em Stock</p>
+                       <h3 className="text-lg font-black text-white mt-1 leading-none">R$ {totalInventoryValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
+                    </div>
+                  </div>
+                </Card>
+
                 <Card className="overflow-hidden border-zinc-800">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-zinc-800 text-zinc-500 text-[9px] uppercase font-black"><tr><th className="p-4">Material</th><th className="p-4">Qtd</th><th className="p-4">Preço</th><th className="p-4 text-center">Ações</th></tr></thead>
@@ -609,6 +674,40 @@ export default function App() {
                     </tbody>
                   </table>
                 </Card>
+
+                {/* --- NOVO: HISTÓRICO DE MOVIMENTAÇÃO DE ESTOQUE --- */}
+                <div className="space-y-4 pt-4">
+                  <h3 className="text-sm font-black text-zinc-500 uppercase italic tracking-widest flex items-center gap-2">
+                    <History size={16} className="text-orange-600"/> Histórico de Uso
+                  </h3>
+                  <Card className="overflow-hidden border-zinc-800 bg-zinc-950/50">
+                    <table className="w-full text-left text-[10px]">
+                      <thead className="bg-zinc-900 text-zinc-500 uppercase font-black">
+                        <tr>
+                          <th className="p-3">Item</th>
+                          <th className="p-3">Qtd</th>
+                          <th className="p-3">Destino (Carro)</th>
+                          <th className="p-3">Por Quem</th>
+                          <th className="p-3">Data</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-900">
+                        {inventoryLog.map(log => (
+                          <tr key={log.id} className="hover:bg-zinc-900/20 transition-colors">
+                            <td className="p-3 font-bold text-white uppercase">{log.item_name}</td>
+                            <td className="p-3 text-orange-500 font-black">{log.quantity} un</td>
+                            <td className="p-3 text-zinc-400 font-bold uppercase">{log.vehicle_info}</td>
+                            <td className="p-3 text-zinc-500 font-bold uppercase italic">{log.professional}</td>
+                            <td className="p-3 text-zinc-600 font-mono">{new Date(log.created_at).toLocaleDateString('pt-BR')}</td>
+                          </tr>
+                        ))}
+                        {inventoryLog.length === 0 && (
+                          <tr><td colSpan="5" className="p-8 text-center text-zinc-700 font-black uppercase tracking-widest italic">Nenhuma movimentação registada</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </Card>
+                </div>
               </div>
             )}
 
@@ -749,7 +848,7 @@ export default function App() {
             </div>
           )}
 
-          {/* MODAL DETALHES - FICHA TÉCNICA 100% COMPLETA */}
+          {/* MODAL DETALHES - FICHA TÉCNICA 100% COMPLETA COM DEBITO DE MATERIAL */}
           {viewingVehicle && (
             <div className="fixed inset-0 bg-black/98 z-[200] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
               <Card className="w-full max-w-5xl bg-zinc-950 border-none rounded-[24px] overflow-hidden my-auto shadow-2xl animate-in zoom-in-95 duration-300">
@@ -804,7 +903,40 @@ export default function App() {
                          </div>
                       </div>
 
-                      {/* CHECKLIST DE SERVIÇOS TÉCNICOS */}
+                      <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl space-y-4">
+                         <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2 italic leading-none"><BoxSelect size={14} className="text-blue-500"/> Materiais Aplicados (Debitar Stock)</p>
+                         <form onSubmit={handleDebitMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="flex flex-col gap-1 md:col-span-1">
+                               <label className="text-[8px] font-black uppercase text-zinc-600 ml-1">Produto</label>
+                               <select 
+                                  className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500 text-[10px] font-bold"
+                                  value={debitForm.inventoryId}
+                                  onChange={e => setDebitForm({...debitForm, inventoryId: e.target.value})}
+                               >
+                                  <option value="">Selecionar Item...</option>
+                                  {inventory.map(item => (
+                                     <option key={item.id} value={item.id}>{item.name} ({item.quantity} un)</option>
+                                  ))}
+                               </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                               <label className="text-[8px] font-black uppercase text-zinc-600 ml-1">Qtd Utilizada</label>
+                               <input 
+                                  type="number" 
+                                  min="1"
+                                  className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500 text-[10px] font-bold"
+                                  value={debitForm.quantity}
+                                  onChange={e => setDebitForm({...debitForm, quantity: Number(e.target.value)})}
+                               />
+                            </div>
+                            <div className="flex items-end">
+                               <Button type="submit" variant="secondary" className="w-full py-2 border border-zinc-800 hover:border-blue-500 text-blue-500 bg-blue-500/5">
+                                  Debitar e Lançar
+                               </Button>
+                            </div>
+                         </form>
+                      </div>
+
                       <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-3">
                           <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2 italic leading-none"><ClipboardList size={14}/> Serviços Selecionados no Orçamento</p>
                           <div className="flex flex-wrap gap-2">
@@ -820,7 +952,7 @@ export default function App() {
                           <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none"><Share2 size={12}/> Link do Cliente para WhatsApp</p>
                           <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-lg border border-zinc-900">
                              <input readOnly className="bg-transparent flex-1 px-3 text-[9px] text-zinc-500 font-mono outline-none truncate" value={`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`}/>
-                             <button onClick={() => copyToClipboard(`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`)} className="bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md text-black transition-all flex items-center gap-1.5">
+                             <button onClick={() => copyToClipboard(`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`)} className="bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md text-black transition-all flex items-center justify-center gap-1.5">
                                 <Copy size={12}/> <span className="text-[8px] font-black uppercase italic">Copiar</span>
                              </button>
                           </div>
@@ -838,8 +970,8 @@ export default function App() {
                       {viewingVehicle.work_status === 'In Work' && (
                         <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-xl space-y-4 shadow-inner">
                            <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none"><Layers size={14}/> Etapas de Produção em Estufa</p>
-                           <div className="grid grid-cols-2 gap-2">
-                              {['Lixamento', 'Fundo', 'Pintura', 'Secagem'].map(stage => (
+                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              {['Funilaria', 'Preparação', 'Pintura', 'Polimento', 'Finalizado'].map(stage => (
                                  <button key={stage} onClick={() => updateVehicleStage(viewingVehicle.id, stage)} className={`px-3 py-2.5 rounded-lg text-[9px] font-black uppercase transition-all border ${viewingVehicle.current_stage === stage ? 'bg-orange-600 border-orange-600 text-black italic scale-[1.02]' : 'bg-zinc-900 border-zinc-800 text-zinc-700 hover:text-white'}`}>
                                     {stage}
                                  </button>
@@ -854,7 +986,7 @@ export default function App() {
                             <button onClick={() => generateBudgetPDF(viewingVehicle)} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg text-zinc-300 font-black text-[8px] uppercase tracking-widest flex items-center gap-2 border border-zinc-700 transition-all"><Download size={14}/> PDF</button>
                          </div>
                          <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col justify-center">
-                            <p className="text-[8px] font-black text-zinc-600 uppercase italic tracking-widest mb-1 leading-none">Custo de Material Estimado</p>
+                            <p className="text-[8px] font-black text-zinc-600 uppercase italic tracking-widest mb-1 leading-none">Custo de Material Acumulado</p>
                             <p className="text-zinc-400 font-bold text-lg leading-none italic">R$ {Number(viewingVehicle.cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                          </div>
                       </div>
