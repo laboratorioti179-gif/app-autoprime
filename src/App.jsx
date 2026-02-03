@@ -5,7 +5,6 @@ import {
   History, 
   Package, 
   DollarSign, 
-  Users, 
   Plus, 
   Camera, 
   Clock, 
@@ -13,56 +12,50 @@ import {
   Phone, 
   Trash2, 
   CheckCircle2, 
-  XCircle, 
-  ChevronRight, 
-  Search, 
   Wrench, 
-  TrendingUp, 
-  AlertTriangle, 
   Paintbrush, 
   ImageIcon, 
   Save, 
   X, 
-  Eye, 
-  Activity, 
   ClipboardList, 
-  Hash, 
   Loader2, 
   RotateCcw, 
-  Calendar, 
   Sparkles, 
-  Tag, 
-  Zap, 
-  Droplets, 
-  Globe, 
-  Wallet, 
-  MessageSquare, 
-  FileText, 
-  Download, 
   Settings, 
-  Building2, 
   Mail, 
-  Fingerprint, 
   Check, 
   Lock, 
   LogIn, 
   LogOut, 
-  UserPlus,
   Menu,
   MapPin,
-  CalendarDays
+  ToggleLeft,
+  ToggleRight,
+  Cpu,
+  Layers,
+  Copy,
+  Share2,
+  Download,
+  AlertTriangle,
+  TrendingUp,
+  Zap,
+  Droplets,
+  Globe,
+  FileText,
+  Calendar,
+  Activity
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO SUPABASE ---
 const SUPABASE_URL = "https://nmuhjnkiktaxvvarcfvt.supabase.co"; 
 const SUPABASE_ANON_KEY = "sb_publishable_1KEeI_9oX6JkhqPoLcxO-A_vFN77VoA";
 
-// --- COMPONENTES UI FIXOS ---
+// --- COMPONENTES UI REFINADOS ---
 
 const Card = ({ children, className = "", onClick }) => (
   <div 
     onClick={onClick}
-    className={`bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl transition-all ${onClick ? 'cursor-pointer hover:border-zinc-700 active:scale-[0.99]' : ''} ${className}`}
+    className={`bg-zinc-900 border border-zinc-800/50 rounded-xl shadow-lg transition-all ${onClick ? 'cursor-pointer hover:border-orange-600/30 active:scale-[0.98]' : ''} ${className}`}
   >
     {children}
   </div>
@@ -70,18 +63,18 @@ const Card = ({ children, className = "", onClick }) => (
 
 const Button = ({ children, onClick, variant = "primary", className = "", disabled = false, type = "button" }) => {
   const variants = {
-    primary: "bg-orange-600 hover:bg-orange-700 text-white",
+    primary: "bg-orange-600 hover:bg-orange-700 text-white shadow-md",
     secondary: "bg-zinc-800 hover:bg-zinc-700 text-zinc-300",
-    danger: "bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-600/20",
+    danger: "bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/20",
     success: "bg-emerald-600 hover:bg-emerald-700 text-white",
-    outline: "bg-transparent border border-zinc-700 hover:border-orange-600 text-zinc-300 hover:text-orange-500"
+    outline: "bg-transparent border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white"
   };
   return (
     <button 
       type={type}
       disabled={disabled}
       onClick={onClick} 
-      className={`px-4 py-2 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 ${variants[variant]} ${className}`}
+      className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 ${variants[variant]} ${className}`}
     >
       {children}
     </button>
@@ -89,18 +82,18 @@ const Button = ({ children, onClick, variant = "primary", className = "", disabl
 };
 
 const Input = ({ label, icon: Icon, ...props }) => (
-  <div className="flex flex-col gap-1.5 w-full">
-    {label && <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{label}</label>}
+  <div className="flex flex-col gap-1 w-full">
+    {label && <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">{label}</label>}
     <div className="relative group">
       {Icon && (
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-orange-600 transition-colors">
-          <Icon size={18} />
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-orange-600 transition-colors">
+          <Icon size={14} />
         </div>
       )}
       <input 
         {...props} 
         value={props.value || ""} 
-        className={`bg-zinc-800 border border-zinc-700 rounded-xl w-full py-2.5 text-white outline-none focus:border-orange-600 transition-colors ${Icon ? 'pl-11 pr-4' : 'px-4'}`}
+        className={`bg-zinc-950 border border-zinc-800 rounded-lg w-full py-2 text-sm text-white outline-none focus:border-orange-600 transition-all placeholder:text-zinc-700 ${Icon ? 'pl-9 pr-3' : 'px-3'}`}
       />
     </div>
   </div>
@@ -114,14 +107,15 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewingVehicle, setViewingVehicle] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentTenantId, setCurrentTenantId] = useState(null);
+  
+  const [publicVehicle, setPublicVehicle] = useState(null);
+  const [isPublicView, setIsPublicView] = useState(false);
 
   const [vehicles, setVehicles] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [dashboardFilter, setDashboardFilter] = useState('all');
-  const [authMode, setAuthMode] = useState('login'); 
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [notification, setNotification] = useState({ show: false, message: "", type: "success" });
@@ -130,11 +124,16 @@ export default function App() {
     workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: ""
   });
 
+  const [appSettings, setAppSettings] = useState({
+    showPolishing: true,
+    showInventory: true,
+    showFinance: true
+  });
+
   const [serviceOptions, setServiceOptions] = useState([
-    "Pintura completa", "Capô", "Porta dianteira (Lado Motorista)", 
-    "Porta dianteira (Lado passageiro)", "Teto", "Traseira (Porta Traseira)", 
-    "Para-choque (Traseiro)", "Para-choque (Dianteiro)", "Polimento veículo", 
-    "Polimento (Peça)", "Polimento (Farol)", "Pintura Interna", "Pintura Peça"
+    "Pintura completa", "Capô", "Porta dianteira", "Porta traseira", "Teto", 
+    "Traseira", "Para-choque (Traseiro)", "Para-choque (Dianteiro)", 
+    "Polimento veículo", "Polimento (Peça)", "Polimento (Farol)", "Pintura Peça"
   ]);
 
   const [fixedCosts, setFixedCosts] = useState({
@@ -150,44 +149,25 @@ export default function App() {
     selectedServices: [], customPieceText: "", photos: {} 
   });
 
-  const [quickServiceText, setQuickServiceText] = useState("");
-  const [newItem, setNewItem] = useState({ name: "", brand: "", quantity: "", unitPrice: "", purchaseDate: new Date().toISOString().split('T')[0] });
+  const [newItem, setNewItem] = useState({ name: "", brand: "", quantity: "", price: "" });
 
   const showNotification = (message, type = "success") => {
     setNotification({ show: true, message, type });
-    setTimeout(() => setNotification({ show: false, message: "", type: "success" }), 4000);
+    setTimeout(() => setNotification({ show: false, message: "", type: "success" }), 3000);
+  };
+
+  const copyToClipboard = (text) => {
+    const el = document.createElement('textarea');
+    el.value = text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showNotification("Link copiado!");
   };
 
   useEffect(() => {
-    document.title = "Auto Prime";
-    const metaTags = [
-      { name: 'apple-mobile-web-app-title', content: 'Auto Prime' },
-      { name: 'application-name', content: 'Auto Prime' },
-      { name: 'apple-mobile-web-app-capable', content: 'yes' },
-      { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
-      { name: 'mobile-web-app-capable', content: 'yes' }
-    ];
-
-    metaTags.forEach(tag => {
-      let element = document.querySelector(`meta[name="${tag.name}"]`);
-      if (!element) {
-        element = document.createElement('meta');
-        element.setAttribute('name', tag.name);
-        document.head.appendChild(element);
-      }
-      element.setAttribute('content', tag.content);
-    });
-
-    let linkIcon = document.querySelector('link[rel="apple-touch-icon"]');
-    if (!linkIcon) {
-      linkIcon = document.createElement('link');
-      linkIcon.setAttribute('rel', 'apple-touch-icon');
-      document.head.appendChild(linkIcon);
-    }
-    linkIcon.setAttribute('href', 'https://cdn-icons-png.flaticon.com/512/3202/3202926.png');
-
     const initApp = async () => {
-      const failsafe = setTimeout(() => { setAuthLoading(false); }, 8000);
       const loadScript = (src) => new Promise((resolve) => {
         const script = document.createElement('script');
         script.src = src;
@@ -201,6 +181,15 @@ export default function App() {
       if (supabaseOk && window.supabase) {
         const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         setSupabase(client);
+
+        const params = new URLSearchParams(window.location.search);
+        const vId = params.get('v');
+        if (vId) {
+          setIsPublicView(true);
+          const { data } = await client.from('autoprime_vehicles').select('*').eq('id', vId).maybeSingle();
+          if (data) setPublicVehicle(data);
+        }
+
         const savedAuth = localStorage.getItem('autoprime_session_active');
         const savedTenant = localStorage.getItem('autoprime_tenant_id');
         if (savedAuth === 'true' && savedTenant) {
@@ -209,13 +198,9 @@ export default function App() {
         }
       }
 
-      const pdfOk = await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
-      if (pdfOk && window.jspdf) {
-        window.jsPDF = window.jspdf.jsPDF;
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js');
-      }
-
-      clearTimeout(failsafe);
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js');
+      
       setAuthLoading(false);
     };
     initApp();
@@ -223,26 +208,25 @@ export default function App() {
 
   useEffect(() => {
     if (supabase && isAuthenticated && currentTenantId) fetchData();
-  }, [supabase, isAuthenticated, currentTenantId]);
+  }, [supabase, isAuthenticated, currentTenantId, activeTab]);
 
   const fetchData = async () => {
     if (!supabase || !currentTenantId) return;
-    setLoading(true);
     try {
       const { data: vData } = await supabase.from('autoprime_vehicles').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false });
       const { data: iData } = await supabase.from('autoprime_inventory').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false });
       const { data: fData } = await supabase.from('autoprime_fixed_costs').select('*').eq('tenant_id', currentTenantId).maybeSingle(); 
       const { data: pData } = await supabase.from('autoprime_profile').select('*').eq('tenant_id', currentTenantId).maybeSingle();
+      
       if (vData) setVehicles(vData);
       if (iData) setInventory(iData);
-      if (fData) {
-        setFixedCosts({ aluguel: Number(fData.aluguel) || 0, material: Number(fData.material) || 0, funcionario: Number(fData.funcionario) || 0, agua: Number(fData.agua) || 0, luz: Number(fData.luz) || 0, internet: Number(fData.internet) || 0 });
-      }
+      if (fData) setFixedCosts(fData);
       if (pData) {
-        setProfile({ workshop_name: pData.workshop_name ?? "", cnpj: pData.cnpj ?? "", owner_name: pData.owner_name ?? "", address: pData.address ?? "", phone: pData.phone ?? "", email: pData.email ?? "" });
+        setProfile(pData);
         if (pData.custom_services) setServiceOptions(pData.custom_services);
+        if (pData.app_settings) setAppSettings(pData.app_settings);
       }
-    } finally { setLoading(false); }
+    } catch(e) { console.error(e); }
   };
 
   const handleLogin = async (e) => {
@@ -254,178 +238,85 @@ export default function App() {
       setIsAuthenticated(true);
       localStorage.setItem('autoprime_session_active', 'true');
       localStorage.setItem('autoprime_tenant_id', data.tenant_id);
-    } else { setLoginError("Credenciais inválidas."); }
+    } else { setLoginError("Dados inválidos."); }
   };
 
-  const handleLogout = () => { setIsAuthenticated(false); localStorage.clear(); };
-
-  const activeVehicles = useMemo(() => vehicles.filter(v => v.status === 'active'), [vehicles]);
-  const historyVehicles = useMemo(() => vehicles.filter(v => v.status === 'done'), [vehicles]);
-  const finance = useMemo(() => {
-    const rev = vehicles.reduce((acc, v) => acc + (Number(v.price) || 0), 0);
-    const exp = Object.values(fixedCosts).reduce((acc, val) => acc + (Number(val) || 0), 0);
-    return { rev, exp, profit: rev - exp };
-  }, [vehicles, fixedCosts]);
-
-  const dashboardStats = useMemo(() => ({
-    orcamentos: activeVehicles.filter(v => v.work_status === 'Aguardando Aprovação').length,
-    cadastrados: activeVehicles.filter(v => v.work_status === 'Cadastrado').length,
-    emTrabalho: activeVehicles.filter(v => v.work_status === 'In Work').length,
-    concluidosMes: historyVehicles.length
-  }), [activeVehicles, historyVehicles]);
-
-  const filteredDashboardVehicles = useMemo(() => {
-    if (dashboardFilter === 'budgets') return activeVehicles.filter(v => v.work_status === 'Aguardando Aprovação');
-    if (dashboardFilter === 'registered') return activeVehicles.filter(v => v.work_status === 'Cadastrado');
-    if (dashboardFilter === 'in_work') return activeVehicles.filter(v => v.work_status === 'In Work');
-    if (dashboardFilter === 'done') return historyVehicles;
-    return activeVehicles;
-  }, [dashboardFilter, activeVehicles, historyVehicles]);
-
-  const polishingList = useMemo(() => vehicles.filter(v => v.polishing_date).sort((a, b) => new Date(a.polishing_date) - new Date(b.polishing_date)), [vehicles]);
+  const handleLogout = () => { setIsAuthenticated(false); localStorage.clear(); window.location.href = window.location.pathname; };
 
   const generateBudgetPDF = (vehicle) => {
-    if (!window.jspdf) { showNotification("Erro ao carregar gerador de PDF.", "danger"); return; }
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.setFillColor(39, 39, 42); 
-    doc.rect(0, 0, 210, 45, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
-    doc.setFont("helvetica", "bold");
-    doc.text(profile.workshop_name.toUpperCase() || "AUTOPRIME", 15, 20);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`CNPJ: ${profile.cnpj || "N/A"}`, 15, 28);
-    doc.text(`${profile.address || "Endereço não informado"}`, 15, 33);
-    doc.text(`Tel: ${profile.phone || "N/A"}`, 15, 38);
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("ORÇAMENTO", 145, 25);
-    doc.setFontSize(10);
-    doc.text(`#${vehicle.id.substring(0,6).toUpperCase()}`, 145, 32);
-    doc.text(`Data: ${new Date().toLocaleDateString()}`, 145, 37);
-    doc.setTextColor(39, 39, 42);
-    doc.setFontSize(12);
-    doc.text("DADOS DO CLIENTE", 15, 60);
-    doc.setDrawColor(200, 200, 200);
-    doc.line(15, 62, 195, 62);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Cliente: ${vehicle.customer_name}`, 15, 70);
-    doc.text(`Telefone: ${vehicle.phone}`, 120, 70);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("DADOS DO VEÍCULO", 15, 85);
-    doc.line(15, 87, 195, 87);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Veículo: ${vehicle.brand} ${vehicle.model}`, 15, 95);
-    doc.text(`Placa: ${vehicle.license_plate}`, 120, 95);
-    doc.text(`Cor: ${vehicle.color}`, 15, 102);
-    doc.text(`Localização: ${vehicle.location}`, 120, 102);
-    if (doc.autoTable) {
-        const services = vehicle.service_description.split(",").map(s => [s.trim()]);
+    try {
+      if (!window.jspdf) return;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFillColor(24, 24, 27);
+      doc.rect(0, 0, 210, 35, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text(profile.workshop_name.toUpperCase() || "AUTOPRIME", 15, 22);
+      
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(profile.address || "", 15, 29);
+
+      doc.setTextColor(24, 24, 27);
+      doc.setFontSize(10);
+      doc.text("ORÇAMENTO TÉCNICO", 15, 50);
+      doc.line(15, 52, 195, 52);
+      
+      doc.text(`Cliente: ${vehicle.customer_name}`, 15, 60);
+      doc.text(`Veículo: ${vehicle.brand} ${vehicle.model} (${vehicle.license_plate})`, 15, 67);
+      doc.text(`Data: ${new Date().toLocaleDateString()}`, 15, 74);
+
+      const services = vehicle.service_description.split(',').map(s => [s.trim()]);
+      if (doc.autoTable) {
         doc.autoTable({
-            startY: 115,
-            head: [['DESCRIÇÃO DOS SERVIÇOS']],
-            body: services,
-            theme: 'striped',
-            headStyles: { fillColor: [234, 88, 12], textColor: 255, fontStyle: 'bold' },
-            bodyStyles: { font: 'helvetica', fontSize: 9 },
-            margin: { left: 15, right: 15 }
+          startY: 85,
+          head: [['SERVIÇO']],
+          body: services,
+          theme: 'striped',
+          headStyles: { fillColor: [234, 88, 12] }
         });
-    }
-    const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 15 : 140;
-    doc.setFillColor(244, 244, 245);
-    doc.rect(130, finalY, 65, 20, 'F');
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("VALOR TOTAL:", 135, finalY + 8);
-    doc.setTextColor(234, 88, 12);
-    doc.setFontSize(14);
-    doc.text(`R$ ${Number(vehicle.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 135, finalY + 16);
-    doc.setTextColor(100, 100, 100);
-    doc.setFontSize(8);
-    doc.text(`Profissional Responsável: ${vehicle.professional || "Não informado"}`, 15, finalY + 15);
-    doc.save(`Orcamento_${vehicle.license_plate}.pdf`);
+      }
+
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 12 : 140;
+      doc.setFontSize(12);
+      doc.text(`TOTAL: R$ ${Number(vehicle.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 15, finalY);
+
+      doc.save(`Orcamento_${vehicle.license_plate}.pdf`);
+      showNotification("PDF gerado!");
+    } catch (err) { console.error(err); }
   };
 
-  const updateWorkStatus = async (id, newWorkStatus) => {
-    const isDone = newWorkStatus === 'Concluído';
+  const updateWorkStatus = async (id, newStatus) => {
+    const isDone = newStatus === 'Concluído';
     const polDate = isDone ? new Date(new Date().setDate(new Date().getDate() + 30)).toISOString() : null;
-    const upd = { work_status: newWorkStatus, status: isDone ? 'done' : 'active', polishing_date: polDate };
-    
-    // Atualiza estado local de veículos
+    const upd = { 
+      work_status: newStatus, 
+      status: isDone ? 'done' : 'active', 
+      polishing_date: polDate,
+      current_stage: newStatus === 'In Work' ? 'Lixamento' : null
+    };
     setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd } : v));
-    
-    // Se o modal estiver aberto, atualiza o veículo visualizado na hora
-    if (viewingVehicle && viewingVehicle.id === id) {
-      setViewingVehicle(prev => ({ ...prev, ...upd }));
-    }
-    
+    if (viewingVehicle && viewingVehicle.id === id) setViewingVehicle(prev => ({ ...prev, ...upd }));
     await supabase.from('autoprime_vehicles').update(upd).eq('id', id);
+    showNotification("Status atualizado!");
+  };
+
+  const updateVehicleStage = async (id, stage) => {
+    const upd = { current_stage: stage };
+    setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd } : v));
+    if (viewingVehicle && viewingVehicle.id === id) setViewingVehicle(prev => ({ ...prev, ...upd }));
+    await supabase.from('autoprime_vehicles').update(upd).eq('id', id);
+    showNotification(`Etapa: ${stage}`);
   };
 
   const deleteVehicle = async (id) => {
-    const { error } = await supabase.from('autoprime_vehicles').delete().eq('id', id);
-    if (!error) setVehicles(vehicles.filter(v => v.id !== id));
-  };
-
-  const toggleService = (service) => {
-    setNewVehicle(prev => {
-      const exists = prev.selectedServices.includes(service);
-      return { ...prev, selectedServices: exists ? prev.selectedServices.filter(s => s !== service) : [...prev.selectedServices, service] };
-    });
-  };
-
-  const updateServiceText = (index, newText) => {
-    const updated = [...serviceOptions];
-    updated[index] = newText;
-    setServiceOptions(updated);
-  };
-
-  const addQuickService = () => {
-    if (quickServiceText.trim()) {
-      const updated = [...serviceOptions, quickServiceText.trim()];
-      setServiceOptions(updated);
-      setNewVehicle(prev => ({ ...prev, selectedServices: [...prev.selectedServices, quickServiceText.trim()] }));
-      setQuickServiceText("");
-    }
-  };
-
-  const saveFixedCosts = async () => {
-    const payload = { 
-      tenant_id: currentTenantId, 
-      aluguel: Number(fixedCosts.aluguel) || 0, 
-      material: Number(fixedCosts.material) || 0, 
-      funcionario: Number(fixedCosts.funcionario) || 0, 
-      agua: Number(fixedCosts.agua) || 0, 
-      luz: Number(fixedCosts.luz) || 0, 
-      internet: Number(fixedCosts.internet) || 0 
-    };
-    await supabase.from('autoprime_fixed_costs').upsert(payload, { onConflict: 'tenant_id' });
-    showNotification("Financeiro atualizado!");
-  };
-
-  const handleAddVehicle = async (e) => {
-    e.preventDefault();
-    let desc = newVehicle.selectedServices.join(", ");
-    if (newVehicle.customPieceText && (newVehicle.selectedServices.some(s => s.toLowerCase().includes("peça")))) {
-      desc += ` (${newVehicle.customPieceText})`;
-    }
-    const { data } = await supabase.from('autoprime_vehicles').insert([{
-      customer_name: newVehicle.customerName.trim(), phone: newVehicle.phone, brand: newVehicle.brand, model: newVehicle.model,
-      license_plate: newVehicle.licensePlate, color: newVehicle.color, entry_time: new Date().toLocaleString('pt-BR'),
-      service_description: desc, status: newVehicle.workStatus === 'Concluído' ? 'done' : 'active', work_status: newVehicle.workStatus, price: Number(newVehicle.price),
-      cost: Number(newVehicle.cost), tenant_id: currentTenantId, photos: newVehicle.photos, vehicle_type: newVehicle.type,
-      location: newVehicle.location, professional: newVehicle.professional
-    }]).select();
-    if (data) {
-      setVehicles([data[0], ...vehicles]);
-      setIsModalOpen(false);
-      setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Normal", color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação", selectedServices: [], customPieceText: "", photos: {} });
-      showNotification("Veículo registrado com sucesso!");
+    if (confirm("Deseja apagar este veículo?")) {
+      await supabase.from('autoprime_vehicles').delete().eq('id', id);
+      setVehicles(vehicles.filter(v => v.id !== id));
+      showNotification("Removido.");
     }
   };
 
@@ -438,352 +329,492 @@ export default function App() {
     }
   };
 
+  const handleAddVehicle = async (e) => {
+    e.preventDefault();
+    let desc = newVehicle.selectedServices.join(", ");
+    if (newVehicle.customPieceText) desc += ` (${newVehicle.customPieceText})`;
+    
+    const payload = {
+      customer_name: newVehicle.customerName, phone: newVehicle.phone, brand: newVehicle.brand, model: newVehicle.model,
+      license_plate: newVehicle.licensePlate, color: newVehicle.color, entry_time: new Date().toLocaleString('pt-BR'),
+      service_description: desc, status: newVehicle.workStatus === 'Concluído' ? 'done' : 'active',
+      work_status: newVehicle.workStatus, price: Number(String(newVehicle.price).replace(',', '.')),
+      cost: Number(String(newVehicle.cost).replace(',', '.')), tenant_id: currentTenantId,
+      photos: newVehicle.photos, location: newVehicle.location, professional: newVehicle.professional,
+      vehicle_type: newVehicle.type || 'Normal', current_stage: newVehicle.workStatus === 'In Work' ? 'Lixamento' : null
+    };
+    
+    const { data } = await supabase.from('autoprime_vehicles').insert([payload]).select();
+    if (data) {
+      setVehicles([data[0], ...vehicles]);
+      setIsModalOpen(false);
+      setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Normal", color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação", selectedServices: [], customPieceText: "", photos: {} });
+      showNotification("Cadastrado!");
+    }
+  };
+
+  const handleAddItem = async (e) => {
+    e.preventDefault();
+    const payload = {
+      ...newItem,
+      tenant_id: currentTenantId,
+      price: Number(newItem.price),
+      quantity: Number(newItem.quantity)
+    };
+    const { data } = await supabase.from('autoprime_inventory').insert([payload]).select();
+    if (data) {
+      setInventory([data[0], ...inventory]);
+      setIsInventoryModalOpen(false);
+      setNewItem({ name: "", brand: "", quantity: "", price: "" });
+      showNotification("Item adicionado!");
+    }
+  };
+
+  const activeVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'active'), [vehicles]);
+  const historyVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'done'), [vehicles]);
+  const financeMemo = useMemo(() => {
+    const rev = vehicles.reduce((acc, v) => acc + (Number(v.price) || 0), 0);
+    const exp = Object.values(fixedCosts).reduce((acc, val) => acc + (Number(val) || 0), 0);
+    return { rev, exp, profit: rev - exp };
+  }, [vehicles, fixedCosts]);
+
+  const filteredVehicles = useMemo(() => {
+    if (dashboardFilter === 'budgets') return activeVehiclesMemo.filter(v => v.work_status === 'Aguardando Aprovação');
+    if (dashboardFilter === 'registered') return activeVehiclesMemo.filter(v => v.work_status === 'Cadastrado');
+    if (dashboardFilter === 'in_work') return activeVehiclesMemo.filter(v => v.work_status === 'In Work');
+    if (dashboardFilter === 'done') return historyVehiclesMemo;
+    return activeVehiclesMemo;
+  }, [dashboardFilter, activeVehiclesMemo, historyVehiclesMemo]);
+
+  const polishingListMemo = useMemo(() => vehicles.filter(v => v.polishing_date).sort((a, b) => new Date(a.polishing_date) - new Date(b.polishing_date)), [vehicles]);
+
   const SidebarContent = () => (
     <>
-      <div className="flex items-center gap-3 mb-12">
-        <div className="bg-orange-600 p-2 rounded-xl text-black rotate-12"><Paintbrush size={24} strokeWidth={3}/></div>
-        <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter">Auto<span className="text-orange-600">Prime</span></h1>
+      <div className="flex items-center gap-2 mb-8 px-2">
+        <div className="bg-orange-600 p-1.5 rounded-lg text-black rotate-12 shadow-md"><Paintbrush size={18} strokeWidth={3}/></div>
+        <h1 className="text-xl font-black text-white italic uppercase tracking-tighter">Auto<span className="text-orange-600">Prime</span></h1>
       </div>
-      <nav className="flex flex-col gap-2 flex-1">
-        {[ { id: 'dashboard', label: 'Painel', icon: LayoutDashboard }, { id: 'history', label: 'Histórico', icon: History }, { id: 'polishing', label: 'Polimento', icon: Sparkles }, { id: 'inventory', label: 'Estoque', icon: Package }, { id: 'finance', label: 'Financeiro', icon: DollarSign }, { id: 'profile', label: 'Meus dados', icon: User } ].map(item => (
-          <button key={item.id} onClick={() => {setActiveTab(item.id); setIsMobileMenuOpen(false);}} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all ${activeTab === item.id ? 'bg-orange-600 text-black italic' : 'text-zinc-500 hover:text-white hover:bg-zinc-900'}`}><item.icon size={18} /> {item.label}</button>
+      <nav className="flex flex-col gap-1 flex-1">
+        {[ 
+          { id: 'dashboard', label: 'Painel', icon: LayoutDashboard, visible: true }, 
+          { id: 'history', label: 'Histórico', icon: History, visible: true }, 
+          { id: 'polishing', label: 'Polimento', icon: Sparkles, visible: appSettings.showPolishing }, 
+          { id: 'inventory', label: 'Estoque', icon: Package, visible: appSettings.showInventory }, 
+          { id: 'finance', label: 'Financeiro', icon: DollarSign, visible: appSettings.showFinance },
+          { id: 'settings', label: 'Ajustes', icon: Settings, visible: true }, 
+          { id: 'profile', label: 'Oficina', icon: User, visible: true } 
+        ].filter(item => item.visible).map(item => (
+          <button 
+            key={item.id} 
+            onClick={() => {setActiveTab(item.id); setIsMobileMenuOpen(false);}} 
+            className={`flex items-center gap-3 px-3 py-3 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all ${activeTab === item.id ? 'bg-orange-600 text-black italic shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'}`}
+          >
+            <item.icon size={16} /> {item.label}
+          </button>
         ))}
       </nav>
-      <button onClick={handleLogout} className="mt-auto flex items-center gap-3 px-4 py-3.5 text-red-500 font-black uppercase text-[11px] tracking-widest hover:bg-red-500/10 rounded-2xl transition-all"><LogOut size={18} /> Sair</button>
+      <button onClick={handleLogout} className="mt-auto flex items-center gap-3 px-3 py-3 text-red-500 font-bold uppercase text-[9px] tracking-widest hover:bg-red-500/10 rounded-xl transition-all"><LogOut size={16} /> Sair</button>
     </>
   );
 
-  const renderDashboard = () => (
-    <div className="p-6 space-y-8 animate-in fade-in duration-500">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[ { id: 'budgets', label: 'Orçamentos', val: dashboardStats.orcamentos, color: 'border-l-zinc-500', icon: ClipboardList, iconColor: 'text-zinc-500', bg: 'bg-zinc-800' }, { id: 'registered', label: 'Pátio', val: dashboardStats.cadastrados, color: 'border-l-orange-600', icon: Car, iconColor: 'text-orange-600', bg: 'bg-orange-600/10' }, { id: 'in_work', label: 'Trabalhando', val: dashboardStats.emTrabalho, color: 'border-l-blue-600', icon: Wrench, iconColor: 'text-blue-600', bg: 'bg-blue-600/10' }, { id: 'done', label: 'Finalizados', val: dashboardStats.concluidosMes, color: 'border-l-emerald-600', icon: CheckCircle2, iconColor: 'text-emerald-600', bg: 'bg-emerald-600/10' } ].map(st => (
-          <Card key={st.id} onClick={() => setDashboardFilter(st.id)} className={`p-4 flex flex-col md:flex-row items-center gap-3 border-l-4 transition-all ${dashboardFilter === st.id ? `${st.color} bg-zinc-800` : 'border-l-zinc-800 opacity-60'}`}>
-            <div className={`p-2 ${st.bg} rounded-xl ${st.iconColor}`}><st.icon size={20} /></div>
-            <div className="text-center md:text-left"><p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest leading-none mb-1">{st.label}</p><h3 className="text-xl font-black text-white leading-none">{st.val}</h3></div>
-          </Card>
-        ))}
-      </div>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">{dashboardFilter === 'budgets' ? 'Orçamentos' : 'Veículos'}</h2>
-        <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 w-full md:w-auto justify-center"><Plus size={18} /> Nova Entrada</Button>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filteredDashboardVehicles.map(v => (
-          <Card key={v.id} className="p-5 flex flex-col gap-4 border-t-4 border-t-zinc-700" onClick={() => setViewingVehicle(v)}>
-            <div className="flex justify-between items-start">
-              <div><h4 className="text-lg font-black text-white uppercase italic leading-none">{v.brand} {v.model}</h4><p className="text-zinc-500 text-[9px] font-black uppercase mt-1">{v.license_plate} • {v.color}</p></div>
-              <span className="text-[8px] px-2 py-0.5 rounded font-black bg-orange-600/10 text-orange-600 border border-orange-600/20">{v.work_status}</span>
-            </div>
-            <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                <div className="flex-1 overflow-x-auto flex gap-1 bg-zinc-800 p-1 rounded-xl no-scrollbar">
-                    {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
-                        <button key={st} onClick={() => updateWorkStatus(v.id, st)} className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${v.work_status === st ? 'bg-orange-600 text-black' : 'text-zinc-500 hover:text-white'}`}>{st}</button>
-                    ))}
-                </div>
-                <Button variant="danger" className="px-3" onClick={() => deleteVehicle(v.id)}><Trash2 size={16}/></Button>
-            </div>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderAuth = () => (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-orange-600/10 blur-[120px] rounded-full" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-600/5 blur-[120px] rounded-full" />
-      <Card className="w-full max-w-md p-10 relative z-10 border-zinc-800/50 backdrop-blur-xl">
-        <div className="flex flex-col items-center gap-6 mb-10">
-          <div className="bg-orange-600 p-4 rounded-2xl text-black shadow-lg shadow-orange-600/20 rotate-12"><Paintbrush size={32} strokeWidth={3}/></div>
-          <div className="text-center">
-            <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">Auto<span className="text-orange-600">Prime</span></h1>
-            <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mt-2">Sua oficina em um novo nível de gestão</p>
-          </div>
-        </div>
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div className="space-y-4">
-            <Input label="E-mail" type="email" icon={Mail} placeholder="exemplo@email.com" value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} required />
-            <Input label="Senha" type="password" icon={Lock} placeholder="••••••••" value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} required />
-          </div>
-          {loginError && <div className="p-3 bg-red-600/10 border border-red-600/20 rounded-xl text-red-500 text-xs font-bold"><AlertTriangle size={14} className="inline mr-2" /> {loginError}</div>}
-          <Button type="submit" className="w-full py-4 flex items-center justify-center gap-2 text-sm">Acessar Painel <LogIn size={18} /></Button>
-        </form>
-      </Card>
-    </div>
-  );
-
-  if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-orange-500"><Loader2 className="animate-spin" size={48} /></div>;
-  if (!isAuthenticated) return renderAuth();
-
   return (
     <div className="min-h-screen bg-black text-zinc-300 font-sans flex flex-col md:flex-row relative">
-      {notification.show && <div className="fixed top-4 right-4 z-[500] flex items-center gap-3 px-6 py-4 rounded-2xl border bg-emerald-950 border-emerald-500 text-emerald-400 animate-in slide-in-from-top-10 shadow-2xl"><Check size={20}/><span className="font-bold uppercase text-[10px] tracking-widest">{notification.message}</span></div>}
-      <header className="md:hidden flex items-center justify-between p-4 bg-zinc-950 border-b border-zinc-800 sticky top-0 z-50">
-        <div className="flex items-center gap-2"><div className="bg-orange-600 p-1.5 rounded-lg text-black rotate-12"><Paintbrush size={18} strokeWidth={3}/></div><h1 className="text-xl font-black text-white italic uppercase">Auto<span className="text-orange-600">Prime</span></h1></div>
-        <button onClick={() => setIsMobileMenuOpen(true)} className="text-zinc-400 p-2"><Menu size={24} /></button>
-      </header>
-      {isMobileMenuOpen && ( <div className="fixed inset-0 z-[100] md:hidden"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}/><aside className="absolute left-0 top-0 bottom-0 w-72 bg-zinc-950 p-6 flex flex-col animate-in slide-in-from-left duration-300"><SidebarContent /></aside></div> )}
-      <aside className="hidden md:flex flex-col w-72 bg-zinc-950 border-r border-zinc-800 p-6 sticky top-0 h-screen"><SidebarContent /></aside>
-      <main className="flex-1 min-h-screen overflow-y-auto">
-        {activeTab === 'dashboard' && renderDashboard()}
-        {activeTab === 'history' && (
-           <div className="p-6 space-y-6">
-              <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Histórico de Pinturas</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 {historyVehicles.map(v => ( <Card key={v.id} onClick={() => setViewingVehicle(v)} className="p-6 opacity-60 hover:opacity-100 flex justify-between items-center group"><div><div className="flex items-center gap-2"><h4 className="font-black text-white uppercase italic leading-none">{v.brand} {v.model}</h4><CheckCircle2 className="text-emerald-500" size={14}/></div><p className="text-[10px] text-zinc-500 mt-2 uppercase font-bold">{v.customer_name} • {v.license_plate}</p></div><Button variant="outline" className="opacity-0 group-hover:opacity-100 transition-all" onClick={(e) => { e.stopPropagation(); updateWorkStatus(v.id, 'In Work'); }}><RotateCcw size={16} /></Button></Card> ))}
-              </div>
-           </div>
-        )}
-        {activeTab === 'polishing' && (
-           <div className="p-6 space-y-6">
-              <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter flex items-center gap-2"><Sparkles className="text-orange-500"/> Agenda de Polimento</h2>
-              <Card className="overflow-hidden"><table className="w-full text-left text-sm min-w-[500px]"><thead className="bg-zinc-800 text-zinc-500 text-[9px] uppercase font-black"><tr><th className="p-4">Cliente</th><th className="p-4">Veículo</th><th className="p-4">Data Polimento</th></tr></thead><tbody className="divide-y divide-zinc-800">{polishingList.map(v => ( <tr key={v.id} className="hover:bg-zinc-800/30"><td className="p-4 font-bold text-white uppercase italic">{v.customer_name}</td><td className="p-4 text-zinc-300 uppercase text-xs">{v.brand} {v.model} ({v.license_plate})</td><td className="p-4 text-orange-500 font-black">{new Date(v.polishing_date).toLocaleDateString()}</td></tr> ))}</tbody></table></Card>
-           </div>
-        )}
-        {activeTab === 'inventory' && (
-          <div className="p-6 space-y-6">
-            <div className="flex justify-between items-center"><h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Estoque</h2><Button onClick={() => setIsInventoryModalOpen(true)} className="flex items-center gap-2"><Plus size={18}/> Novo Item</Button></div>
-            <Card className="overflow-hidden"><table className="w-full text-left text-sm min-w-[500px]"><thead className="bg-zinc-800 text-zinc-500 text-[9px] uppercase font-black"><tr><th className="p-4">Item</th><th className="p-4">Qtd</th><th className="p-4">Preço</th><th className="p-4">Ação</th></tr></thead><tbody className="divide-y divide-zinc-800">{inventory.map(item => ( <tr key={item.id}><td className="p-4 font-bold text-white uppercase italic leading-none">{item.name}<br/><span className="text-[8px] text-zinc-600 font-black">{item.brand}</span></td><td className="p-4">{item.quantity} un</td><td className="p-4 text-emerald-500 font-black">R$ {Number(item.price).toLocaleString()}</td><td className="p-4"><button onClick={() => deleteInventoryItem(item.id)} className="text-zinc-600 hover:text-red-500"><Trash2 size={16}/></button></td></tr> ))}</tbody></table></Card>
-          </div>
-        )}
-        {activeTab === 'finance' && (
-          <div className="p-6 space-y-8 animate-in zoom-in-95 duration-300">
-            <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Financeiro</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6"><Card className="p-6 border-l-4 border-l-orange-500"><p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Faturamento</p><p className="text-2xl font-black text-white">R$ {finance.rev.toLocaleString()}</p></Card><Card className="p-6 border-l-4 border-l-red-500"><p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Custos Fixos</p><p className="text-2xl font-black text-red-500">R$ {finance.exp.toLocaleString()}</p></Card><Card className="p-6 border-l-4 border-l-emerald-500"><p className="text-[10px] text-zinc-500 font-black uppercase mb-1">Lucro Estimado</p><p className="text-2xl font-black text-emerald-500">R$ {finance.profit.toLocaleString()}</p></Card></div>
-            <Card className="p-8 space-y-6">
-              <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2">Gestão de Custos Mensais</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Input label="Aluguel" type="number" value={fixedCosts.aluguel} onChange={e => setFixedCosts({...fixedCosts, aluguel: e.target.value})}/>
-                <Input label="Material" type="number" value={fixedCosts.material} onChange={e => setFixedCosts({...fixedCosts, material: e.target.value})}/>
-                <Input label="Funcionários" type="number" value={fixedCosts.funcionario} onChange={e => setFixedCosts({...fixedCosts, funcionario: e.target.value})}/>
-                <Input label="Energia / Luz" type="number" value={fixedCosts.luz} onChange={e => setFixedCosts({...fixedCosts, luz: e.target.value})}/>
-                <Input label="Água" type="number" value={fixedCosts.agua} onChange={e => setFixedCosts({...fixedCosts, agua: e.target.value})}/>
-                <Input label="Internet" type="number" value={fixedCosts.internet} onChange={e => setFixedCosts({...fixedCosts, internet: e.target.value})}/>
-              </div>
-              <Button onClick={saveFixedCosts} className="w-full py-4 uppercase font-black italic tracking-widest flex items-center justify-center gap-2">
-                <Save size={18} /> Atualizar Financeiro
-              </Button>
-            </Card>
-          </div>
-        )}
-        {activeTab === 'profile' && (
-          <div className="p-6 space-y-6">
-            <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Meus Dados</h2>
-            <Card className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input label="Oficina" value={profile.workshop_name} onChange={e => setProfile({...profile, workshop_name: e.target.value})} />
-                <Input label="CNPJ" value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} />
-                <Input label="Telefone" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} />
-                <Input label="Endereço" value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})} />
-              </div>
-              <Button onClick={() => supabase.from('autoprime_profile').upsert({ tenant_id: currentTenantId, ...profile }).then(() => showNotification("Perfil salvo!"))}>Salvar Perfil</Button>
-            </Card>
-          </div>
-        )}
-      </main>
-
-      {/* MODAL NOVA ENTRADA - RESTAURADO COM TODOS OS STATUS DISPONÍVEIS NO DROPDOWN */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-2 md:p-4">
-          <Card className="w-full max-w-2xl p-6 md:p-8 relative space-y-6 max-h-[95vh] overflow-y-auto no-scrollbar">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
-              <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">Nova Entrada</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white"><X size={24}/></button>
-            </div>
-            <form onSubmit={handleAddVehicle} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input label="Cliente" value={newVehicle.customerName} onChange={e => setNewVehicle({...newVehicle, customerName: e.target.value})} placeholder="Ex: João Silva" required />
-                <Input label="Telefone" value={newVehicle.phone} onChange={e => setNewVehicle({...newVehicle, phone: e.target.value})} placeholder="Ex: (11) 99999-9999" required />
-                <Input label="Veículo" value={newVehicle.brand || newVehicle.model ? `${newVehicle.brand} ${newVehicle.model}` : ""} onChange={e => { const parts = e.target.value.split(" "); setNewVehicle({...newVehicle, brand: parts[0] || "", model: parts.slice(1).join(" ")}); }} placeholder="Ex: BMW M3" required />
-                <Input label="Placa" value={newVehicle.licensePlate} onChange={e => setNewVehicle({...newVehicle, licensePlate: e.target.value.toUpperCase()})} placeholder="Ex: ABC-1234" required />
-                <Input label="Valor Orçado" type="number" value={newVehicle.price} onChange={e => setNewVehicle({...newVehicle, price: e.target.value})} placeholder="Ex: 1500" required />
-                <Input label="Custo Material" type="number" value={newVehicle.cost} onChange={e => setNewVehicle({...newVehicle, cost: e.target.value})} placeholder="Ex: 450" required />
-                <Input label="Cor" value={newVehicle.color} onChange={e => setNewVehicle({...newVehicle, color: e.target.value})} placeholder="Ex: Cinza Nardo" required />
-                <Input label="Profissional" value={newVehicle.professional} onChange={e => setNewVehicle({...newVehicle, professional: e.target.value})} placeholder="Ex: Ricardo Silva" required />
-                
-                <div className="flex flex-col gap-1.5 w-full">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Vaga / Local (BOX)</label>
-                  <select className="bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-orange-600 transition-colors text-sm cursor-pointer" value={newVehicle.location} onChange={e => setNewVehicle({...newVehicle, location: e.target.value})}>
-                    {["BOX 01", "BOX 02", "BOX 03", "BOX 04", "BOX 05", "BOX 06", "BOX 07", "BOX 08", "BOX 09", "BOX 10"].map(box => <option key={box} value={box}>{box}</option>)}
-                  </select>
-                </div>
-                
-                <div className="flex flex-col gap-1.5 w-full">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Status Inicial</label>
-                  <select className="bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-orange-600 text-sm" value={newVehicle.workStatus} onChange={e => setNewVehicle({...newVehicle, workStatus: e.target.value})} required>
-                    <option value="Aguardando Aprovação">Aguardando Aprovação</option>
-                    <option value="Cadastrado">Cadastrado</option>
-                    <option value="In Work">In Work</option>
-                    <option value="Concluído">Concluído</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest leading-none">Serviços Solicitados (Checklist)</label>
-                  </div>
-                  <div className="bg-zinc-800 border border-zinc-700 rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2 no-scrollbar shadow-inner">
-                    {serviceOptions.map((opt, idx) => (
-                        <div key={idx} className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${newVehicle.selectedServices.includes(opt) ? 'bg-orange-600/10 border-orange-600' : 'bg-zinc-900 border-zinc-800'}`}>
-                            <div onClick={() => toggleService(opt)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer ${newVehicle.selectedServices.includes(opt) ? 'bg-orange-600 border-orange-600' : 'border-zinc-700'}`}>
-                                {newVehicle.selectedServices.includes(opt) && <Check size={12} className="text-black" />}
-                            </div>
-                            <input className={`bg-transparent text-xs font-black uppercase italic w-full outline-none ${newVehicle.selectedServices.includes(opt) ? 'text-orange-500' : 'text-zinc-500 focus:text-white'}`} value={opt} onChange={(e) => updateServiceText(idx, e.target.value)} />
-                        </div>
-                    ))}
-                    <div className="flex items-center gap-2 px-4 py-2 bg-zinc-950 border border-zinc-800 border-dashed rounded-xl">
-                        <Plus size={16} className="text-zinc-600" />
-                        <input className="bg-transparent text-xs font-black uppercase italic w-full outline-none text-white placeholder:text-zinc-700" placeholder="Outro serviço..." value={quickServiceText} onChange={(e) => setQuickServiceText(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); addQuickService(); } }} />
-                    </div>
-                  </div>
-              </div>
-
-              {(newVehicle.selectedServices.some(s => s.toLowerCase().includes("peça"))) && (
-                <Input label="Descreva qual a peça:" value={newVehicle.customPieceText} onChange={e => setNewVehicle({...newVehicle, customPieceText: e.target.value})} placeholder="Ex: Paralamas Dianteiro Esquerdo" required />
-              )}
-
-              <div className="space-y-3">
-                  <p className="text-[10px] font-black uppercase text-zinc-500 ml-1 tracking-widest">Fotos Check-list</p>
-                  <div className="grid grid-cols-5 gap-2">
-                      {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map(pos => (
-                        <div key={pos} onClick={() => document.getElementById(`photo-${pos}`).click()} className="aspect-square bg-zinc-800 rounded-xl border border-zinc-700 border-dashed flex items-center justify-center text-zinc-600 cursor-pointer overflow-hidden relative">
-                            {newVehicle.photos[pos] ? <img src={newVehicle.photos[pos]} className="w-full h-full object-cover" /> : <Camera size={18} />}
-                            <input type="file" id={`photo-${pos}`} className="hidden" accept="image/*" onChange={(e) => handlePhotoUpload(pos, e)} />
-                        </div>
-                      ))}
-                  </div>
-              </div>
-
-              <Button type="submit" className="w-full py-4 uppercase tracking-widest">Finalizar Registro</Button>
-            </form>
-          </Card>
+      
+      {notification.show && (
+        <div className="fixed top-4 right-4 z-[600] flex items-center gap-3 px-5 py-3 rounded-xl border bg-emerald-950/80 backdrop-blur-md border-emerald-500 text-emerald-400 animate-in slide-in-from-top-10 shadow-xl">
+          <Check size={16}/><span className="font-bold uppercase text-[9px] tracking-widest">{notification.message}</span>
         </div>
       )}
-
-      {/* VIEW VEHICLE MODAL - FICHA COMPLETA COM SELETOR DE STATUS FUNCIONAL */}
-      {viewingVehicle && (
-        <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-2 md:p-4 overflow-y-auto">
-          <Card className="w-full max-w-4xl bg-zinc-950 border-none rounded-[32px] overflow-hidden my-auto shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-            <div className="bg-orange-600 p-8 flex justify-between items-start relative">
-                <div className="relative z-10">
-                    <h2 className="text-3xl font-black text-black uppercase italic leading-none tracking-tighter">
-                        {viewingVehicle.brand} {viewingVehicle.model}
-                    </h2>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-                        <p className="text-black font-black uppercase text-[11px] tracking-widest opacity-80">
-                            PLACA: {viewingVehicle.license_plate}
-                        </p>
-                        <p className="text-black font-black uppercase text-[11px] tracking-widest opacity-80">
-                            COR: {viewingVehicle.color}
-                        </p>
-                    </div>
-                </div>
-                <button onClick={() => setViewingVehicle(null)} className="bg-black/10 hover:bg-black/20 p-2 rounded-full text-black transition-colors">
-                  <X size={24}/>
-                </button>
-            </div>
-
-            <div className="p-8 grid md:grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto no-scrollbar">
-                <div className="space-y-6">
-                    {/* BARRA DE ALTERAÇÃO DE STATUS DENTRO DA FICHA (ARRUMADO) */}
-                    <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl space-y-3">
-                        <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1">Alterar Status Atual</p>
-                        <div className="flex gap-1 overflow-x-auto no-scrollbar bg-zinc-950 p-1 rounded-xl">
-                            {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
-                                <button 
-                                    key={st} 
-                                    onClick={() => updateWorkStatus(viewingVehicle.id, st)}
-                                    className={`whitespace-nowrap px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all flex-1 ${viewingVehicle.work_status === st ? 'bg-orange-600 text-black italic' : 'text-zinc-600 hover:text-white hover:bg-zinc-800'}`}
-                                >
-                                    {st}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
-                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1"><User size={10}/> Cliente</p>
-                            <p className="text-white font-bold uppercase text-xs">{viewingVehicle.customer_name}</p>
-                        </div>
-                        <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
-                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1"><Phone size={10}/> Contato</p>
-                            <p className="text-white font-bold uppercase text-xs">{viewingVehicle.phone}</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
-                            <p className="text-[8px] font-black text-orange-500 uppercase tracking-widest mb-1 flex items-center gap-1"><MapPin size={10}/> Vaga / Local</p>
-                            <p className="text-white font-black uppercase text-xs italic">{viewingVehicle.location}</p>
-                        </div>
-                        <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
-                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1"><Wrench size={10}/> Responsável</p>
-                            <p className="text-white font-bold uppercase text-xs">{viewingVehicle.professional || "Não informado"}</p>
-                        </div>
-                    </div>
-
-                    <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex justify-between items-center">
-                        <div>
-                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1"><Clock size={10}/> Entrada no Sistema</p>
-                            <p className="text-white font-bold text-xs">{viewingVehicle.entry_time}</p>
-                        </div>
-                    </div>
-
-                    <div className="p-6 bg-zinc-900/80 border border-orange-600/20 rounded-[24px] space-y-4">
-                        <p className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] border-b border-zinc-800 pb-3">Resumo dos Serviços</p>
-                        <p className="text-white font-bold italic text-sm leading-relaxed">
-                            {viewingVehicle.service_description}
-                        </p>
-                    </div>
-
-                    <div className="flex items-center justify-between p-6 bg-orange-600/5 border border-orange-600/20 rounded-[24px]">
-                        <div>
-                            <p className="text-[9px] text-zinc-500 font-black uppercase tracking-widest mb-1">Valor do Orçamento</p>
-                            <p className="text-emerald-500 font-black text-2xl leading-none">
-                                R$ {Number(viewingVehicle.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </p>
-                        </div>
-                        <button onClick={() => generateBudgetPDF(viewingVehicle)} className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-300 transition-all border border-zinc-700 font-black text-[10px] uppercase tracking-widest">
-                          <Download size={16}/> PDF
-                        </button>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { key: 'TETO', pos: 'Teto' },
-                      { key: 'TRÁS', pos: 'Trás' },
-                      { key: 'FRENTE', pos: 'Frente' },
-                      { key: 'LADO D', pos: 'Lado D' },
-                      { key: 'LADO E', pos: 'Lado E' }
-                    ].map((item, idx) => (
-                      <div key={idx} className={`aspect-[4/3] bg-zinc-900 rounded-2xl overflow-hidden relative border border-white/5 group ${item.key === 'LADO E' ? 'col-span-2 aspect-[16/6]' : ''}`}>
-                        {viewingVehicle.photos?.[item.pos] ? (
-                          <img src={viewingVehicle.photos[item.pos]} className="w-full h-full object-cover" alt={item.key} />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-zinc-800 flex-col gap-2">
-                            <ImageIcon size={32} />
-                            <span className="text-[8px] font-black">SEM FOTO</span>
-                          </div>
-                        )}
-                        <div className="absolute top-3 left-3 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg">
-                          <span className="text-[8px] font-black text-white uppercase tracking-widest">{item.key}</span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-            </div>
-          </Card>
+      
+      {!isAuthenticated ? (
+        <div className="min-h-screen w-full bg-black flex items-center justify-center p-4">
+           <Card className="w-full max-w-sm p-8 bg-zinc-900/50 border-zinc-800 backdrop-blur-xl">
+              <div className="flex flex-col items-center gap-4 mb-8 text-center">
+                 <div className="bg-orange-600 p-3 rounded-2xl text-black rotate-12 shadow-lg"><Paintbrush size={24} strokeWidth={3}/></div>
+                 <h1 className="text-3xl font-black text-white italic uppercase tracking-tighter">Auto<span className="text-orange-600">Prime</span></h1>
+                 <p className="text-[9px] font-bold uppercase text-zinc-500 tracking-widest">Painel Administrativo</p>
+              </div>
+              <form onSubmit={handleLogin} className="space-y-4">
+                 <Input label="E-mail" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="exemplo@autoprime.com" required />
+                 <Input label="Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
+                 {loginError && <p className="text-red-500 text-[9px] font-bold text-center">{loginError}</p>}
+                 <Button type="submit" className="w-full py-3">Aceder Painel</Button>
+              </form>
+           </Card>
         </div>
+      ) : (
+        <>
+          <header className="md:hidden flex items-center justify-between p-4 bg-zinc-950 border-b border-zinc-900 sticky top-0 z-50">
+            <div className="flex items-center gap-2">
+               <div className="bg-orange-600 p-1 rounded-lg text-black rotate-12"><Paintbrush size={16}/></div>
+               <span className="text-lg font-black text-white italic">Auto<span className="text-orange-600">Prime</span></span>
+            </div>
+            <button onClick={() => setIsMobileMenuOpen(true)} className="text-zinc-400 p-2"><Menu size={18} /></button>
+          </header>
+          
+          <aside className="hidden md:flex flex-col w-64 bg-zinc-950 border-r border-zinc-900 p-6 sticky top-0 h-screen"><SidebarContent /></aside>
+          
+          <main className="flex-1 min-h-screen overflow-y-auto bg-[#050505] p-6 lg:p-8">
+            
+            {activeTab === 'dashboard' && (
+              <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[ 
+                    { id: 'budgets', label: 'Orçamentos', val: activeVehiclesMemo.filter(v => v.work_status === 'Aguardando Aprovação').length, icon: ClipboardList, color: 'text-zinc-500' }, 
+                    { id: 'registered', label: 'Pátio', val: activeVehiclesMemo.filter(v => v.work_status === 'Cadastrado').length, icon: Car, color: 'text-orange-500' }, 
+                    { id: 'in_work', label: 'Produção', val: activeVehiclesMemo.filter(v => v.work_status === 'In Work').length, icon: Wrench, color: 'text-blue-500' }, 
+                    { id: 'done', label: 'Concluídos', val: historyVehiclesMemo.length, icon: CheckCircle2, color: 'text-emerald-500' } 
+                  ].map(st => (
+                    <Card key={st.id} onClick={() => setDashboardFilter(st.id)} className={`p-4 border-l-2 transition-all ${dashboardFilter === st.id ? 'border-l-orange-600 bg-zinc-800' : 'border-l-zinc-800'}`}>
+                      <div className="flex items-center gap-3">
+                         <st.icon size={16} className={st.color}/>
+                         <div>
+                            <p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">{st.label}</p>
+                            <h3 className="text-lg font-black text-white leading-none">{st.val}</h3>
+                         </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center gap-4">
+                   <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Painel</h2>
+                   <Button onClick={() => setIsModalOpen(true)} className="px-5"><Plus size={16} /> Nova Entrada</Button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {filteredVehicles.map(v => (
+                    <Card key={v.id} className="p-4 flex flex-col gap-4 border-t-2 border-t-zinc-800 hover:border-t-orange-600 transition-all" onClick={() => setViewingVehicle(v)}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-sm font-black text-white uppercase italic leading-none">{v.brand} {v.model}</h4>
+                          <p className="text-zinc-600 text-[9px] font-bold uppercase mt-1 tracking-widest">{v.license_plate} • {v.location}</p>
+                        </div>
+                        <span className="text-[8px] px-2 py-0.5 rounded-full font-black bg-zinc-950 text-orange-500 border border-zinc-800 uppercase">{v.work_status}</span>
+                      </div>
+                      
+                      <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                          <div className="flex-1 flex gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto no-scrollbar">
+                              {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
+                                  <button key={st} onClick={() => updateWorkStatus(v.id, st)} className={`whitespace-nowrap px-3 py-1.5 rounded-md text-[8px] font-black uppercase transition-all flex-1 ${v.work_status === st ? 'bg-orange-600 text-black italic' : 'text-zinc-600 hover:text-white'}`}>{st}</button>
+                              ))}
+                          </div>
+                          <button onClick={() => deleteVehicle(v.id)} className="p-2.5 bg-red-600/10 text-red-500 rounded-lg hover:bg-red-600 transition-all"><Trash2 size={14}/></button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'profile' && (
+               <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                  <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Oficina</h2>
+                  <Card className="p-6 space-y-6 bg-zinc-900/50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <Input label="Oficina" value={profile.workshop_name} onChange={e => setProfile({...profile, workshop_name: e.target.value})} icon={Car} placeholder="Nome Fantasia" />
+                       <Input label="Telefone" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} icon={Phone} placeholder="9XX XXX XXX" />
+                       <Input label="NIF / CNPJ" value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} icon={FileText} placeholder="Identificação Fiscal" />
+                       <Input label="E-mail" value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} icon={Mail} placeholder="oficina@exemplo.com" />
+                       <div className="md:col-span-2"><Input label="Morada" value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})} icon={MapPin} placeholder="Endereço Completo" /></div>
+                    </div>
+                    <Button onClick={() => supabase.from('autoprime_profile').upsert({ tenant_id: currentTenantId, ...profile }).then(() => showNotification("Salvo!"))} className="w-full py-3"><Save size={16}/> Guardar Perfil</Button>
+                  </Card>
+               </div>
+            )}
+
+            {activeTab === 'inventory' && (
+              <div className="max-w-3xl mx-auto space-y-6">
+                <div className="flex justify-between items-center"><h2 className="text-lg font-black text-white uppercase italic">Estoque</h2><Button onClick={() => setIsInventoryModalOpen(true)}><Plus size={16}/> Novo Item</Button></div>
+                <Card className="overflow-hidden border-zinc-800">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-zinc-800 text-zinc-500 text-[9px] uppercase font-black"><tr><th className="p-4">Material</th><th className="p-4">Qtd</th><th className="p-4">Preço</th><th className="p-4 text-center">Ações</th></tr></thead>
+                    <tbody className="divide-y divide-zinc-800">
+                      {inventory.map(item => (
+                        <tr key={item.id} className="hover:bg-zinc-900/40 transition-colors">
+                          <td className="p-4 font-bold text-white uppercase text-xs">{item.name}</td>
+                          <td className="p-4 text-xs font-bold text-zinc-400">{item.quantity} un</td>
+                          <td className="p-4 text-emerald-500 font-bold text-xs">R$ {Number(item.price).toLocaleString('pt-BR')}</td>
+                          <td className="p-4 text-center"><button onClick={() => supabase.from('autoprime_inventory').delete().eq('id', item.id).then(() => setInventory(inventory.filter(i=>i.id!==item.id)))} className="text-zinc-700 hover:text-red-500"><Trash2 size={16}/></button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Card>
+              </div>
+            )}
+
+            {activeTab === 'finance' && (
+              <div className="max-w-5xl mx-auto space-y-6">
+                  <h2 className="text-lg font-black text-white uppercase italic">Financeiro</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="p-5 border-l-4 border-l-orange-600"><TrendingUp className="text-orange-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase">Faturamento Bruto</p><p className="text-xl font-black text-white">R$ {financeMemo.rev.toLocaleString('pt-BR')}</p></Card>
+                    <Card className="p-5 border-l-4 border-l-red-600"><AlertTriangle className="text-red-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase">Custos Fixos</p><p className="text-xl font-black text-red-500">R$ {financeMemo.exp.toLocaleString('pt-BR')}</p></Card>
+                    <Card className="p-5 border-l-4 border-l-emerald-600"><CheckCircle2 className="text-emerald-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase">Lucro</p><p className="text-xl font-black text-emerald-500">R$ {financeMemo.profit.toLocaleString('pt-BR')}</p></Card>
+                  </div>
+                  <Card className="p-6 space-y-6">
+                     <h3 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Gastos Operacionais Mensais</h3>
+                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <Input label="Aluguel" type="number" value={fixedCosts.aluguel} onChange={e => setFixedCosts({...fixedCosts, aluguel: e.target.value})} icon={MapPin}/>
+                        <Input label="Pessoal" type="number" value={fixedCosts.funcionario} onChange={e => setFixedCosts({...fixedCosts, funcionario: e.target.value})} icon={User}/>
+                        <Input label="Stock" type="number" value={fixedCosts.material} onChange={e => setFixedCosts({...fixedCosts, material: e.target.value})} icon={Package}/>
+                        <Input label="Luz" type="number" value={fixedCosts.luz} onChange={e => setFixedCosts({...fixedCosts, luz: e.target.value})} icon={Zap}/>
+                        <Input label="Água" type="number" value={fixedCosts.agua} onChange={e => setFixedCosts({...fixedCosts, agua: e.target.value})} icon={Droplets}/>
+                        <Input label="Internet" type="number" value={fixedCosts.internet} onChange={e => setFixedCosts({...fixedCosts, internet: e.target.value})} icon={Globe}/>
+                     </div>
+                     <Button onClick={() => supabase.from('autoprime_fixed_costs').upsert({ tenant_id: currentTenantId, ...fixedCosts }, { onConflict: 'tenant_id' }).then(() => showNotification("Salvo!"))} className="w-full py-3"><Save size={16}/> Guardar Balanço</Button>
+                  </Card>
+              </div>
+            )}
+
+            {activeTab === 'history' && (
+              <div className="max-w-6xl mx-auto space-y-4">
+                <h2 className="text-lg font-black text-white uppercase italic">Histórico</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                   {historyVehiclesMemo.map(v => (
+                      <Card key={v.id} className="p-4 flex justify-between items-center group opacity-70 hover:opacity-100" onClick={() => setViewingVehicle(v)}>
+                         <div>
+                            <h4 className="font-black text-white uppercase text-xs">{v.brand} {v.model}</h4>
+                            <p className="text-[8px] text-zinc-600 uppercase mt-1">{v.license_plate} • {v.customer_name}</p>
+                         </div>
+                         <Button variant="outline" className="opacity-0 group-hover:opacity-100 px-2 py-1.5" onClick={(e) => { e.stopPropagation(); updateWorkStatus(v.id, 'In Work'); }}><RotateCcw size={12}/></Button>
+                      </Card>
+                   ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'polishing' && (
+              <div className="max-w-4xl mx-auto space-y-6">
+                 <h2 className="text-lg font-black text-white uppercase italic flex items-center gap-2"><Sparkles className="text-orange-500" size={18}/> Agenda Polimento</h2>
+                 <Card className="overflow-hidden border-zinc-900">
+                    <table className="w-full text-left text-sm">
+                       <thead className="bg-zinc-800 text-zinc-500 text-[9px] uppercase font-black"><tr><th className="p-4">Cliente</th><th className="p-4">Veículo</th><th className="p-4">Retorno</th></tr></thead>
+                       <tbody className="divide-y divide-zinc-800">
+                          {polishingListMemo.map(v => (
+                            <tr key={v.id} className="hover:bg-zinc-900/40 transition-colors">
+                               <td className="p-4 font-bold text-white uppercase text-xs">{v.customer_name}</td>
+                               <td className="p-4 text-zinc-400 text-xs font-bold uppercase">{v.brand} {v.model}</td>
+                               <td className="p-4 text-orange-500 font-black text-xs italic">{new Date(v.polishing_date).toLocaleDateString('pt-BR')}</td>
+                            </tr>
+                          ))}
+                       </tbody>
+                    </table>
+                 </Card>
+              </div>
+            )}
+
+            {activeTab === 'settings' && (
+               <div className="max-w-4xl mx-auto space-y-8">
+                  <h2 className="text-lg font-black text-white uppercase italic">Ajustes</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[ 
+                      { key: 'showPolishing', label: 'Módulo Polimento', icon: Sparkles, color: 'text-orange-500' }, 
+                      { key: 'showInventory', label: 'Módulo Estoque', icon: Package, color: 'text-blue-500' }, 
+                      { key: 'showFinance', label: 'Módulo Financeiro', icon: DollarSign, color: 'text-emerald-500' } 
+                    ].map(item => (
+                      <Card key={item.key} onClick={() => {const ns={...appSettings, [item.key]: !appSettings[item.key]}; setAppSettings(ns); supabase.from('autoprime_profile').update({ app_settings: ns }).eq('tenant_id', currentTenantId); showNotification("Ajustado!");}} className={`p-5 border-2 cursor-pointer transition-all ${appSettings[item.key] ? 'border-orange-600/30' : 'border-zinc-900 grayscale opacity-40'}`}>
+                         <div className="flex justify-between items-center mb-4">
+                            <item.icon size={20} className={appSettings[item.key] ? item.color : 'text-zinc-700'}/>
+                            {appSettings[item.key] ? <ToggleRight className="text-orange-600" size={20}/> : <ToggleLeft className="text-zinc-800" size={20}/>}
+                         </div>
+                         <h4 className="text-[10px] font-black text-white uppercase italic tracking-widest">{item.label}</h4>
+                      </Card>
+                    ))}
+                  </div>
+               </div>
+            )}
+          </main>
+
+          {/* MODAL: NOVA ENTRADA */}
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
+              <Card className="w-full max-w-2xl p-6 relative my-auto bg-zinc-950 border-zinc-800 shadow-2xl">
+                <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"><X size={20}/></button>
+                <form onSubmit={handleAddVehicle} className="space-y-6">
+                   <h2 className="text-lg font-black text-white uppercase italic border-b border-zinc-900 pb-4 tracking-tighter">Vistoria de Entrada</h2>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input label="Cliente" value={newVehicle.customerName} onChange={e => setNewVehicle({...newVehicle, customerName: e.target.value})} placeholder="Ex: João" required />
+                      <Input label="Contacto" value={newVehicle.phone} onChange={e => setNewVehicle({...newVehicle, phone: e.target.value})} placeholder="9XX XXX XXX" required />
+                      <Input label="Marca" value={newVehicle.brand} onChange={e => setNewVehicle({...newVehicle, brand: e.target.value})} placeholder="Ex: Mercedes" required />
+                      <Input label="Modelo" value={newVehicle.model} onChange={e => setNewVehicle({...newVehicle, model: e.target.value})} placeholder="Ex: Classe A" required />
+                      <Input label="Placa" value={newVehicle.licensePlate} onChange={e => setNewVehicle({...newVehicle, licensePlate: e.target.value.toUpperCase()})} placeholder="AA-00-AA" required />
+                      <Input label="Cor" value={newVehicle.color} onChange={e => setNewVehicle({...newVehicle, color: e.target.value})} placeholder="Cor do Veículo" required />
+                      <Input label="Valor (R$)" value={newVehicle.price} onChange={e => setNewVehicle({...newVehicle, price: e.target.value})} placeholder="1500,00" required />
+                      <Input label="Técnico" value={newVehicle.professional} onChange={e => setNewVehicle({...newVehicle, professional: e.target.value})} placeholder="Responsável" required />
+                      <div className="flex flex-col gap-1"><label className="text-[9px] font-black uppercase text-zinc-500 ml-1 tracking-widest">BOX Vaga</label><select className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white outline-none focus:border-orange-600 text-[10px] font-bold" value={newVehicle.location} onChange={e => setNewVehicle({...newVehicle, location: e.target.value})}>{["BOX 01", "BOX 02", "BOX 03", "BOX 04", "BOX 05"].map(b => <option key={b} value={b}>{b}</option>)}</select></div>
+                      <div className="flex flex-col gap-1"><label className="text-[9px] font-black uppercase text-zinc-500 ml-1 tracking-widest">Status Inicial</label><select className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white outline-none focus:border-orange-600 text-[10px] font-bold" value={newVehicle.workStatus} onChange={e => setNewVehicle({...newVehicle, workStatus: e.target.value})}><option value="Aguardando Aprovação">Orçamento</option><option value="Cadastrado">Pátio</option><option value="In Work">Em Produção</option></select></div>
+                   </div>
+                   <div className="space-y-3">
+                      <p className="text-[9px] font-black uppercase text-zinc-600 flex items-center gap-2 tracking-widest"><Camera size={14}/> Registo Fotográfico</p>
+                      <div className="grid grid-cols-5 gap-2">
+                        {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map(pos => (
+                          <div key={pos} onClick={() => document.getElementById(`photo-${pos}`).click()} className="aspect-square bg-zinc-950 rounded-lg border border-zinc-900 border-dashed flex flex-col items-center justify-center cursor-pointer overflow-hidden relative transition-all hover:border-orange-600">
+                             {newVehicle.photos[pos] ? <img src={newVehicle.photos[pos]} className="w-full h-full object-cover" /> : <><Camera size={16}/><span className="text-[7px] font-black uppercase mt-1">{pos}</span></>}
+                             <input type="file" id={`photo-${pos}`} className="hidden" accept="image/*" onChange={(e) => handlePhotoUpload(pos, e)} />
+                          </div>
+                        ))}
+                      </div>
+                   </div>
+                   <Button type="submit" className="w-full py-3 tracking-[0.2em] italic font-black">Registar Entrada</Button>
+                </form>
+              </Card>
+            </div>
+          )}
+
+          {/* NOVO MODAL: ADICIONAR ITEM AO ESTOQUE */}
+          {isInventoryModalOpen && (
+            <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
+              <Card className="w-full max-w-sm p-6 relative my-auto bg-zinc-950 border-zinc-800 shadow-2xl">
+                <button onClick={() => setIsInventoryModalOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"><X size={20}/></button>
+                <form onSubmit={handleAddItem} className="space-y-6">
+                   <h2 className="text-lg font-black text-white uppercase italic border-b border-zinc-900 pb-4 tracking-tighter">Novo Item no Estoque</h2>
+                   <div className="space-y-4">
+                      <Input label="Material" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} placeholder="Ex: Verniz" required />
+                      <Input label="Marca" value={newItem.brand} onChange={e => setNewItem({...newItem, brand: e.target.value})} placeholder="Ex: 3M" required />
+                      <Input label="Quantidade" type="number" value={newItem.quantity} onChange={e => setNewItem({...newItem, quantity: e.target.value})} placeholder="0" required />
+                      <Input label="Preço Unitário (R$)" type="number" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} placeholder="0.00" required />
+                   </div>
+                   <Button type="submit" className="w-full py-3 tracking-[0.2em] italic font-black">Adicionar ao Stock</Button>
+                </form>
+              </Card>
+            </div>
+          )}
+
+          {/* MODAL DETALHES - FICHA TÉCNICA 100% COMPLETA */}
+          {viewingVehicle && (
+            <div className="fixed inset-0 bg-black/98 z-[200] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
+              <Card className="w-full max-w-5xl bg-zinc-950 border-none rounded-[24px] overflow-hidden my-auto shadow-2xl animate-in zoom-in-95 duration-300">
+                <div className="bg-orange-600 p-6 flex justify-between items-start">
+                    <div>
+                        <h2 className="text-2xl font-black text-black uppercase italic leading-none tracking-tighter">FICHA TÉCNICA DO VEÍCULO</h2>
+                        <p className="text-black font-black uppercase text-[10px] tracking-widest mt-2 opacity-80 italic">Controlo de Ativos • AutoPrime Professional</p>
+                    </div>
+                    <button onClick={() => setViewingVehicle(null)} className="bg-black/10 hover:bg-black/20 p-2 rounded-full text-black transition-all active:scale-90"><X size={20}/></button>
+                </div>
+
+                <div className="p-6 md:p-8 grid lg:grid-cols-2 gap-8">
+                   <div className="space-y-6">
+                      
+                      {/* DADOS CADASTRAIS COMPLETOS */}
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Dono / Cliente</p>
+                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.customer_name}</p>
+                         </div>
+                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Telemóvel</p>
+                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.phone}</p>
+                         </div>
+                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Marca / Modelo</p>
+                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.brand} {viewingVehicle.model}</p>
+                         </div>
+                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Matrícula / Placa</p>
+                            <p className="text-orange-500 font-black uppercase text-[10px] italic truncate">{viewingVehicle.license_plate}</p>
+                         </div>
+                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Cor Registada</p>
+                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.color}</p>
+                         </div>
+                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Vaga / BOX</p>
+                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.location}</p>
+                         </div>
+                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Responsável</p>
+                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.professional || "Não Atribuído"}</p>
+                         </div>
+                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Tipo de Veículo</p>
+                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.vehicle_type || "Normal"}</p>
+                         </div>
+                         <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Data de Entrada</p>
+                            <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.entry_time?.split(',')[0] || "---"}</p>
+                         </div>
+                      </div>
+
+                      {/* CHECKLIST DE SERVIÇOS TÉCNICOS */}
+                      <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-3">
+                          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2 italic leading-none"><ClipboardList size={14}/> Serviços Selecionados no Orçamento</p>
+                          <div className="flex flex-wrap gap-2">
+                             {viewingVehicle.service_description?.split(',').map((serv, i) => (
+                               <span key={i} className="bg-zinc-950 border border-zinc-800 px-3 py-1.5 rounded-lg text-[9px] font-black text-zinc-400 uppercase tracking-tight flex items-center gap-1.5">
+                                  <Check size={10} className="text-orange-600"/> {serv.trim()}
+                               </span>
+                             ))}
+                          </div>
+                      </div>
+
+                      <div className="p-4 bg-orange-600/5 border border-orange-600/20 rounded-xl space-y-3">
+                          <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none"><Share2 size={12}/> Link do Cliente para WhatsApp</p>
+                          <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-lg border border-zinc-900">
+                             <input readOnly className="bg-transparent flex-1 px-3 text-[9px] text-zinc-500 font-mono outline-none truncate" value={`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`}/>
+                             <button onClick={() => copyToClipboard(`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`)} className="bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md text-black transition-all flex items-center gap-1.5">
+                                <Copy size={12}/> <span className="text-[8px] font-black uppercase italic">Copiar</span>
+                             </button>
+                          </div>
+                      </div>
+
+                      <div className="space-y-2">
+                         <p className="text-[8px] font-black text-zinc-700 uppercase tracking-widest leading-none ml-1">Fluxo de Trabalho</p>
+                         <div className="flex gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900">
+                            {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
+                               <button key={st} onClick={() => updateWorkStatus(viewingVehicle.id, st)} className={`whitespace-nowrap px-2 py-2 rounded-md text-[7px] font-black uppercase transition-all flex-1 ${viewingVehicle.work_status === st ? 'bg-orange-600 text-black italic shadow-sm' : 'text-zinc-700 hover:text-white'}`}>{st}</button>
+                            ))}
+                         </div>
+                      </div>
+
+                      {viewingVehicle.work_status === 'In Work' && (
+                        <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-xl space-y-4 shadow-inner">
+                           <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none"><Layers size={14}/> Etapas de Produção em Estufa</p>
+                           <div className="grid grid-cols-2 gap-2">
+                              {['Lixamento', 'Fundo', 'Pintura', 'Secagem'].map(stage => (
+                                 <button key={stage} onClick={() => updateVehicleStage(viewingVehicle.id, stage)} className={`px-3 py-2.5 rounded-lg text-[9px] font-black uppercase transition-all border ${viewingVehicle.current_stage === stage ? 'bg-orange-600 border-orange-600 text-black italic scale-[1.02]' : 'bg-zinc-900 border-zinc-800 text-zinc-700 hover:text-white'}`}>
+                                    {stage}
+                                 </button>
+                              ))}
+                           </div>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-3">
+                         <div className="flex justify-between items-center p-4 bg-emerald-600/5 border border-emerald-500/20 rounded-xl">
+                            <div><p className="text-[8px] text-zinc-600 font-black uppercase mb-1 tracking-widest leading-none">Preço Orçado</p><p className="text-emerald-500 font-black text-xl italic tracking-tighter leading-none">R$ {Number(viewingVehicle.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p></div>
+                            <button onClick={() => generateBudgetPDF(viewingVehicle)} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg text-zinc-300 font-black text-[8px] uppercase tracking-widest flex items-center gap-2 border border-zinc-700 transition-all"><Download size={14}/> PDF</button>
+                         </div>
+                         <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col justify-center">
+                            <p className="text-[8px] font-black text-zinc-600 uppercase italic tracking-widest mb-1 leading-none">Custo de Material Estimado</p>
+                            <p className="text-zinc-400 font-bold text-lg leading-none italic">R$ {Number(viewingVehicle.cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                         </div>
+                      </div>
+                   </div>
+
+                   {/* GRID FOTOS REFINADO */}
+                   <div className="grid grid-cols-2 gap-3 h-fit">
+                      {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map((item, idx) => (
+                        <div key={idx} className={`aspect-[4/3] bg-zinc-900 rounded-xl overflow-hidden relative border border-white/5 shadow-md ${idx === 4 ? 'col-span-2 aspect-[16/7]' : ''}`}>
+                          {viewingVehicle.photos?.[item] ? <img src={viewingVehicle.photos[item]} className="w-full h-full object-cover transition-transform hover:scale-105 duration-500" /> : <div className="w-full h-full flex items-center justify-center text-zinc-800 flex-col gap-1.5"><ImageIcon size={24} className="opacity-20"/><span className="text-[7px] font-black uppercase tracking-widest">Sem Registo Fotográfico</span></div>}
+                          <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-2 py-1 rounded-md border border-white/10"><span className="text-[7px] font-black text-white uppercase tracking-widest italic">{item}</span></div>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+              </Card>
+            </div>
+          )}
+        </>
       )}
 
       <style dangerouslySetInnerHTML={{ __html: `
-        body { background: black; } 
+        body { background: black; margin: 0; } 
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .animate-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.995); } to { opacity: 1; transform: scale(1); } }
+        .animate-in { animation: fadeIn 0.2s ease-out forwards; }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-thumb { background: #18181b; border-radius: 10px; }
       ` }} />
     </div>
   );
