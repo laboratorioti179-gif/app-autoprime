@@ -183,6 +183,32 @@ export default function App() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  // Configuração de Identidade Visual e Atalho (App Name e Mobile Experience)
+  useEffect(() => {
+    document.title = "Auto Prime";
+    
+    // Adicionar metatags para experiência de Aplicativo nativo
+    const metaTitle = document.createElement('meta');
+    metaTitle.name = "apple-mobile-web-app-title";
+    metaTitle.content = "Auto Prime";
+    document.head.appendChild(metaTitle);
+
+    const metaCapable = document.createElement('meta');
+    metaCapable.name = "apple-mobile-web-app-capable";
+    metaCapable.content = "yes";
+    document.head.appendChild(metaCapable);
+
+    const metaStatus = document.createElement('meta');
+    metaStatus.name = "apple-mobile-web-app-status-bar-style";
+    metaStatus.content = "black-translucent";
+    document.head.appendChild(metaStatus);
+
+    const metaAndroidCapable = document.createElement('meta');
+    metaAndroidCapable.name = "mobile-web-app-capable";
+    metaAndroidCapable.content = "yes";
+    document.head.appendChild(metaAndroidCapable);
+  }, []);
+
   useEffect(() => {
     const initApp = async () => {
       const loadScript = (src) => new Promise((resolve) => {
@@ -570,6 +596,18 @@ export default function App() {
             </div>
             <button onClick={() => setIsMobileMenuOpen(true)} className="text-zinc-400 p-2"><Menu size={18} /></button>
           </header>
+
+          {/* MENU MOBILE OVERLAY - CORRIGINDO VISIBILIDADE NO CELULAR */}
+          {isMobileMenuOpen && (
+            <div className="fixed inset-0 z-[500] md:hidden">
+              <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
+              <div className="absolute left-0 top-0 bottom-0 w-64 bg-zinc-950 p-6 flex flex-col border-r border-zinc-900 animate-in slide-in-from-left duration-300">
+                <button onClick={() => setIsMobileMenuOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"><X size={20}/></button>
+                <SidebarContent />
+              </div>
+            </div>
+          )}
+
           <aside className="hidden md:flex flex-col w-64 bg-zinc-950 border-r border-zinc-900 p-6 sticky top-0 h-screen"><SidebarContent /></aside>
           <main className="flex-1 min-h-screen overflow-y-auto bg-[#050505] p-6 lg:p-8">
             {activeTab === 'dashboard' && (
