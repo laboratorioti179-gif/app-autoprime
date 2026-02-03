@@ -179,7 +179,7 @@ export default function App() {
   const sendWhatsAppLink = (vehicle) => {
     const link = `${window.location.origin}${window.location.pathname}?v=${vehicle.id}`;
     const text = `Olá ${vehicle.customer_name}! Segue o link para acompanhar o status do seu veículo (${vehicle.brand} ${vehicle.model}) em tempo real na ${profile.workshop_name || 'AutoPrime'}: ${link}`;
-    const phone = vehicle.phone.replace(/\D/g, '');
+    const phone = (vehicle.phone || "").replace(/\D/g, '');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -463,6 +463,13 @@ export default function App() {
     );
   }, [inventory, inventorySearch]);
 
+  // Filtro de logs específicos para o veículo sendo visualizado
+  const vehicleInventoryLogs = useMemo(() => {
+    if (!viewingVehicle) return [];
+    const targetInfo = `${viewingVehicle.brand} ${viewingVehicle.model} (${viewingVehicle.license_plate})`;
+    return inventoryLog.filter(log => log.vehicle_info === targetInfo);
+  }, [inventoryLog, viewingVehicle]);
+
   if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando sistema...</div>;
 
   if (isPublicView) {
@@ -614,7 +621,6 @@ export default function App() {
               </div>
             )}
 
-            {/* RESTAURADO: ABA HISTÓRICO */}
             {activeTab === 'history' && (
               <div className="max-w-6xl mx-auto space-y-4 animate-in fade-in">
                 <h2 className="text-lg font-black text-white uppercase italic">Histórico de Veículos</h2>
@@ -695,7 +701,6 @@ export default function App() {
               </div>
             )}
 
-            {/* RESTAURADO: ABA FINANCEIRO COMPLETA */}
             {activeTab === 'finance' && (
               <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in">
                   <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Painel Financeiro</h2>
@@ -719,7 +724,6 @@ export default function App() {
               </div>
             )}
 
-            {/* RESTAURADO: ABA POLIMENTO COMPLETA */}
             {activeTab === 'polishing' && (
               <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
                  <h2 className="text-lg font-black text-white uppercase italic flex items-center gap-2 tracking-tight"><Sparkles className="text-orange-500" size={18}/> Agenda de Retorno (Polimento)</h2>
@@ -743,7 +747,6 @@ export default function App() {
               </div>
             )}
 
-            {/* RESTAURADO: ABA AJUSTES COMPLETA */}
             {activeTab === 'settings' && (
                <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in">
                   <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Ajustes do Sistema</h2>
@@ -765,7 +768,6 @@ export default function App() {
                </div>
             )}
 
-            {/* RESTAURADO: ABA OFICINA COMPLETA */}
             {activeTab === 'profile' && (
                <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
                   <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Dados da Oficina</h2>
@@ -783,7 +785,6 @@ export default function App() {
             )}
           </main>
 
-          {/* MODAL: NOVA ENTRADA (MANTIDO) */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
               <Card className="w-full max-w-2xl p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl">
@@ -805,7 +806,6 @@ export default function App() {
             </div>
           )}
 
-          {/* MODAL: ADICIONAR ITEM AO ESTOQUE (MANTIDO) */}
           {isInventoryModalOpen && (
             <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
               <Card className="w-full max-w-sm p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl">
@@ -813,10 +813,10 @@ export default function App() {
                 <form onSubmit={handleAddItem} className="space-y-6">
                    <h2 className="text-lg font-black text-white uppercase italic border-b border-zinc-900 pb-4 tracking-tighter">Novo Item no Estoque</h2>
                    <div className="space-y-4">
-                      <Input label="Material" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} required />
-                      <Input label="Marca" value={newItem.brand} onChange={e => setNewItem({...newItem, brand: e.target.value})} />
-                      <Input label="Quantidade" type="number" value={newItem.quantity} onChange={e => setNewItem({...newItem, quantity: e.target.value})} required />
-                      <Input label="Preço Unitário (R$)" type="number" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} required />
+                      <Input label="Material" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} placeholder="Ex: Verniz" required />
+                      <Input label="Marca" value={newItem.brand} onChange={e => setNewItem({...newItem, brand: e.target.value})} placeholder="Ex: 3M" />
+                      <Input label="Quantidade" type="number" value={newItem.quantity} onChange={e => setNewItem({...newItem, quantity: e.target.value})} placeholder="Ex: 10" required />
+                      <Input label="Preço Unitário (R$)" type="number" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} placeholder="Ex: 45.00" required />
                    </div>
                    <Button type="submit" className="w-full py-3 tracking-[0.2em] italic font-black">Adicionar ao Stock</Button>
                 </form>
@@ -824,7 +824,6 @@ export default function App() {
             </div>
           )}
 
-          {/* RESTAURADO: MODAL DETALHES - FICHA TÉCNICA DETALHADA E COMPLETA */}
           {viewingVehicle && (
             <div className="fixed inset-0 bg-black/98 z-[200] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
               <Card className="w-full max-w-5xl bg-zinc-950 border-none rounded-[24px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
@@ -838,7 +837,6 @@ export default function App() {
                 <div className="p-6 md:p-8 grid lg:grid-cols-2 gap-8 overflow-y-auto no-scrollbar max-h-[85vh]">
                    <div className="space-y-6">
                       
-                      {/* GRID DE DADOS COMPLETO RESTAURADO */}
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                          <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
                             <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Dono / Cliente</p>
@@ -878,7 +876,6 @@ export default function App() {
                          </div>
                       </div>
 
-                      {/* CONTROLO DE DÉBITO RESTAURADO */}
                       <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl space-y-4">
                          <p className="text-[9px] font-black text-zinc-500 uppercase flex items-center gap-2 italic"><BoxSelect size={14} className="text-blue-500"/> Materiais Aplicados (Debitar Stock)</p>
                          <form onSubmit={handleDebitMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -891,6 +888,26 @@ export default function App() {
                          </form>
                       </div>
 
+                      {/* NOVO: HISTÓRICO DE CONSUMO DO VEÍCULO */}
+                      {vehicleInventoryLogs.length > 0 && (
+                        <div className="p-4 bg-zinc-900/40 border border-zinc-800/60 rounded-xl space-y-3">
+                            <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2 italic leading-none"><History size={14} className="text-blue-400"/> Histórico de Consumo (Estoque)</p>
+                            <div className="max-h-32 overflow-y-auto pr-1 no-scrollbar space-y-2">
+                               {vehicleInventoryLogs.map((log) => (
+                                 <div key={log.id} className="bg-zinc-950/50 p-2 rounded-lg border border-zinc-900 flex justify-between items-center">
+                                    <div className="flex flex-col">
+                                       <span className="text-[9px] font-black text-white uppercase">{log.item_name}</span>
+                                       <span className="text-[7px] text-zinc-600 font-bold uppercase">{new Date(log.created_at).toLocaleDateString('pt-BR')}</span>
+                                    </div>
+                                    <div className="text-right">
+                                       <span className="text-[9px] font-black text-blue-500">-{log.quantity} un</span>
+                                    </div>
+                                 </div>
+                               ))}
+                            </div>
+                        </div>
+                      )}
+
                       <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-3">
                           <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2 italic"><ClipboardList size={14}/> Serviços Solicitados</p>
                           <div className="flex flex-wrap gap-2">
@@ -902,7 +919,6 @@ export default function App() {
                           </div>
                       </div>
 
-                      {/* RESTAURADO: COMPARTILHAMENTO WHATSAPP */}
                       <div className="p-4 bg-orange-600/5 border border-orange-600/20 rounded-xl space-y-3">
                           <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none"><Share2 size={12}/> Link de Acompanhamento (WhatsApp)</p>
                           <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-lg border border-zinc-900">
@@ -918,7 +934,6 @@ export default function App() {
                           </div>
                       </div>
 
-                      {/* ETAPAS DE PRODUÇÃO RESTAURADAS */}
                       {viewingVehicle.work_status === 'In Work' && (
                         <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-xl space-y-4">
                            <p className="text-[9px] font-black text-orange-600 uppercase flex items-center gap-2 italic"><Layers size={14}/> Produção em Estufa</p>
@@ -944,11 +959,10 @@ export default function App() {
                       </div>
                    </div>
 
-                   {/* GRID FOTOS REFINADO RESTAURADO */}
                    <div className="grid grid-cols-2 gap-3 h-fit">
                       {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map((item, idx) => (
                         <div key={idx} className={`aspect-[4/3] bg-zinc-900 rounded-xl overflow-hidden relative border border-white/5 shadow-md ${idx === 4 ? 'col-span-2 aspect-[16/7]' : ''}`}>
-                          {viewingVehicle.photos?.[item] ? <img src={viewingVehicle.photos[item]} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-zinc-800 flex-col gap-1.5"><ImageIcon size={24} className="opacity-20"/><span className="text-[7px] font-black uppercase tracking-widest">Sem Foto: {item}</span></div>}
+                          {viewingVehicle.photos?.[item] ? <img src={viewingVehicle.photos[item]} className="w-full h-full object-cover shadow-inner" /> : <div className="w-full h-full flex items-center justify-center text-zinc-800 flex-col gap-1.5"><ImageIcon size={24} className="opacity-20"/><span className="text-[7px] font-black uppercase tracking-widest">Sem Foto: {item}</span></div>}
                           <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-2 py-1 rounded-md border border-white/10"><span className="text-[7px] font-black text-white uppercase tracking-widest italic">{item}</span></div>
                         </div>
                       ))}
