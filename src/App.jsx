@@ -195,42 +195,39 @@ export default function App() {
         <circle cx="50" cy="120" r="10" fill="black" />
       </svg>
     `.trim();
-    const iconDataUrl = `data:image/svg+xml;base64,${btoa(iconSvg)}`;
+    const iconDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(iconSvg)}`;
 
     // Adicionar link para ícone (Favicon e Apple Touch Icon)
-    const setIcon = (rel) => {
+    const setIcon = (rel, href) => {
       let link = document.querySelector(`link[rel="${rel}"]`);
       if (!link) {
         link = document.createElement('link');
         link.rel = rel;
         document.head.appendChild(link);
       }
-      link.href = iconDataUrl;
+      link.href = href;
     };
 
-    setIcon('icon');
-    setIcon('apple-touch-icon');
+    setIcon('icon', iconDataUrl);
+    setIcon('apple-touch-icon', iconDataUrl);
+    setIcon('shortcut icon', iconDataUrl);
     
     // Adicionar metatags para experiência de Aplicativo nativo
-    const metaTitle = document.createElement('meta');
-    metaTitle.name = "apple-mobile-web-app-title";
-    metaTitle.content = "Auto Prime";
-    document.head.appendChild(metaTitle);
+    const setMeta = (name, content) => {
+        let meta = document.querySelector(`meta[name="${name}"]`);
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.name = name;
+            document.head.appendChild(meta);
+        }
+        meta.content = content;
+    };
 
-    const metaCapable = document.createElement('meta');
-    metaCapable.name = "apple-mobile-web-app-capable";
-    metaCapable.content = "yes";
-    document.head.appendChild(metaCapable);
-
-    const metaStatus = document.createElement('meta');
-    metaStatus.name = "apple-mobile-web-app-status-bar-style";
-    metaStatus.content = "black-translucent";
-    document.head.appendChild(metaStatus);
-
-    const metaAndroidCapable = document.createElement('meta');
-    metaAndroidCapable.name = "mobile-web-app-capable";
-    metaAndroidCapable.content = "yes";
-    document.head.appendChild(metaAndroidCapable);
+    setMeta("apple-mobile-web-app-title", "Auto Prime");
+    setMeta("apple-mobile-web-app-capable", "yes");
+    setMeta("apple-mobile-web-app-status-bar-style", "black-translucent");
+    setMeta("mobile-web-app-capable", "yes");
+    setMeta("theme-color", "#EA580C");
   }, []);
 
   useEffect(() => {
@@ -857,9 +854,9 @@ export default function App() {
           </main>
 
           {isModalOpen && (
-            <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
-              <Card className="w-full max-w-4xl p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl my-8">
-                <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"><X size={20}/></button>
+            <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] overflow-y-auto no-scrollbar flex items-start justify-center md:items-center p-4">
+              <Card className="w-full max-w-4xl p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl my-4 md:my-8 h-auto">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all z-10"><X size={20}/></button>
                 <form onSubmit={handleAddVehicle} className="space-y-8">
                    <h2 className="text-lg font-black text-white uppercase italic border-b border-zinc-900 pb-4 tracking-tighter">Vistoria de Entrada Completa</h2>
                    
@@ -943,8 +940,8 @@ export default function App() {
                            <div key={pos} className="relative aspect-square bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-xl flex items-center justify-center overflow-hidden hover:border-orange-600 transition-all group">
                               {newVehicle.photos?.[pos] ? (
                                 <>
-                                  <img src={newVehicle.photos[pos]} className="w-full h-full object-cover" />
-                                  <button onClick={(e) => { e.stopPropagation(); setNewVehicle(prev => ({ ...prev, photos: { ...prev.photos, [pos]: null } })); }} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={20} className="text-red-500" /></button>
+                                  <img src={newVehicle.photos[pos]} className="w-full h-full object-cover" alt={pos} />
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); setNewVehicle(prev => ({ ...prev, photos: { ...prev.photos, [pos]: null } })); }} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={20} className="text-red-500" /></button>
                                 </>
                               ) : (
                                 <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center gap-2">
@@ -1120,7 +1117,7 @@ export default function App() {
                       {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map((item, idx) => (
                         <div key={idx} className={`bg-zinc-900 rounded-[20px] overflow-hidden relative border border-zinc-800 shadow-2xl transition-all hover:border-orange-600/30 group ${idx === 4 ? 'col-span-2 aspect-[21/9]' : 'aspect-square'}`}>
                           {viewingVehicle.photos?.[item] ? (
-                            <img src={viewingVehicle.photos[item]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                            <img src={viewingVehicle.photos[item]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={item} />
                           ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center text-zinc-800 gap-2">
                                <ImageIcon size={32} className="opacity-10" />
@@ -1143,6 +1140,7 @@ export default function App() {
             <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[300] flex items-center justify-center p-4">
               <Card className="w-full max-w-md p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                 <button 
+                  type="button"
                   onClick={() => setIsInventoryModalOpen(false)} 
                   className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"
                 >
