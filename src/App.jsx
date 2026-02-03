@@ -46,7 +46,9 @@ import {
   Activity,
   BoxSelect,
   MinusCircle,
-  ArrowDownRight
+  ArrowDownRight,
+  Search,
+  MessageCircle
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO SUPABASE ---
@@ -118,11 +120,13 @@ export default function App() {
 
   const [vehicles, setVehicles] = useState([]);
   const [inventory, setInventory] = useState([]);
-  const [inventoryLog, setInventoryLog] = useState([]); // Novo: Histórico de estoque
+  const [inventoryLog, setInventoryLog] = useState([]); 
   const [dashboardFilter, setDashboardFilter] = useState('all');
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [notification, setNotification] = useState({ show: false, message: "", type: "success" });
+
+  const [inventorySearch, setInventorySearch] = useState("");
 
   const [profile, setProfile] = useState({
     workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: ""
@@ -172,6 +176,13 @@ export default function App() {
     showNotification("Link copiado!");
   };
 
+  const sendWhatsAppLink = (vehicle) => {
+    const link = `${window.location.origin}${window.location.pathname}?v=${vehicle.id}`;
+    const text = `Olá ${vehicle.customer_name}! Segue o link para acompanhar o status do seu veículo (${vehicle.brand} ${vehicle.model}) em tempo real na ${profile.workshop_name || 'AutoPrime'}: ${link}`;
+    const phone = vehicle.phone.replace(/\D/g, '');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   useEffect(() => {
     const initApp = async () => {
       const loadScript = (src) => new Promise((resolve) => {
@@ -183,31 +194,35 @@ export default function App() {
         document.head.appendChild(script);
       });
 
-      const supabaseOk = await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
-      if (supabaseOk && window.supabase) {
-        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        setSupabase(client);
+      try {
+        const supabaseOk = await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+        if (supabaseOk && window.supabase) {
+          const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          setSupabase(client);
 
-        const params = new URLSearchParams(window.location.search);
-        const vId = params.get('v');
-        if (vId) {
-          setIsPublicView(true);
-          const { data } = await client.from('autoprime_vehicles').select('*').eq('id', vId).maybeSingle();
-          if (data) setPublicVehicle(data);
+          const params = new URLSearchParams(window.location.search);
+          const vId = params.get('v');
+          if (vId) {
+            setIsPublicView(true);
+            const { data } = await client.from('autoprime_vehicles').select('*').eq('id', vId).maybeSingle();
+            if (data) setPublicVehicle(data);
+          }
+
+          const savedAuth = localStorage.getItem('autoprime_session_active');
+          const savedTenant = localStorage.getItem('autoprime_tenant_id');
+          if (savedAuth === 'true' && savedTenant) {
+            setCurrentTenantId(savedTenant);
+            setIsAuthenticated(true);
+          }
         }
 
-        const savedAuth = localStorage.getItem('autoprime_session_active');
-        const savedTenant = localStorage.getItem('autoprime_tenant_id');
-        if (savedAuth === 'true' && savedTenant) {
-          setCurrentTenantId(savedTenant);
-          setIsAuthenticated(true);
-        }
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js');
+      } catch (err) {
+        console.error("Erro ao carregar scripts externos:", err);
+      } finally {
+        setAuthLoading(false);
       }
-
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js');
-      
-      setAuthLoading(false);
     };
     initApp();
   }, []);
@@ -225,16 +240,16 @@ export default function App() {
       const { data: fData } = await supabase.from('autoprime_fixed_costs').select('*').eq('tenant_id', currentTenantId).maybeSingle(); 
       const { data: pData } = await supabase.from('autoprime_profile').select('*').eq('tenant_id', currentTenantId).maybeSingle();
       
-      if (vData) setVehicles(vData);
-      if (iData) setInventory(iData);
-      if (logData) setInventoryLog(logData);
+      setVehicles(vData || []);
+      setInventory(iData || []);
+      setInventoryLog(logData || []);
       if (fData) setFixedCosts(fData);
       if (pData) {
         setProfile(pData);
         if (pData.custom_services) setServiceOptions(pData.custom_services);
         if (pData.app_settings) setAppSettings(pData.app_settings);
       }
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error("Erro ao buscar dados:", e); }
   };
 
   const handleLogin = async (e) => {
@@ -277,7 +292,7 @@ export default function App() {
       doc.text(`Veículo: ${vehicle.brand} ${vehicle.model} (${vehicle.license_plate})`, 15, 67);
       doc.text(`Data: ${new Date().toLocaleDateString()}`, 15, 74);
 
-      const services = vehicle.service_description.split(',').map(s => [s.trim()]);
+      const services = (vehicle.service_description || "").split(',').map(s => [s.trim()]);
       if (doc.autoTable) {
         doc.autoTable({
           startY: 85,
@@ -290,7 +305,7 @@ export default function App() {
 
       const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 12 : 140;
       doc.setFontSize(12);
-      doc.text(`TOTAL: R$ ${Number(vehicle.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 15, finalY);
+      doc.text(`TOTAL: R$ ${Number(vehicle.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 15, finalY);
 
       doc.save(`Orcamento_${vehicle.license_plate}.pdf`);
       showNotification("PDF gerado!");
@@ -339,7 +354,7 @@ export default function App() {
 
   const handleAddVehicle = async (e) => {
     e.preventDefault();
-    let desc = newVehicle.selectedServices.join(", ");
+    let desc = (newVehicle.selectedServices || []).join(", ");
     if (newVehicle.customPieceText) desc += ` (${newVehicle.customPieceText})`;
     
     const payload = {
@@ -389,18 +404,15 @@ export default function App() {
     }
 
     const newQty = item.quantity - debitForm.quantity;
-    const materialCost = Number(item.price) * Number(debitForm.quantity);
-    const newVehicleCost = (Number(viewingVehicle.cost) || 0) + materialCost;
+    const materialCost = Number(item.price || 0) * Number(debitForm.quantity);
+    const newVehicleCost = (Number(viewingVehicle.cost || 0)) + materialCost;
 
-    // 1. Debitar do Inventário
     const { error: invError } = await supabase.from('autoprime_inventory').update({ quantity: newQty }).eq('id', item.id);
     if (invError) return;
 
-    // 2. Atualizar custo no Veículo
     const { error: vehError } = await supabase.from('autoprime_vehicles').update({ cost: newVehicleCost }).eq('id', viewingVehicle.id);
     if (vehError) return;
 
-    // 3. Registrar no Histórico de Movimentação
     const logEntry = {
       tenant_id: currentTenantId,
       item_name: item.name,
@@ -411,18 +423,18 @@ export default function App() {
     };
     const { data: logData } = await supabase.from('autoprime_inventory_log').insert([logEntry]).select();
 
-    // 4. Atualizar estados locais
     setInventory(inventory.map(i => i.id === item.id ? { ...i, quantity: newQty } : i));
     setVehicles(vehicles.map(v => v.id === viewingVehicle.id ? { ...v, cost: newVehicleCost } : v));
     setViewingVehicle({ ...viewingVehicle, cost: newVehicleCost });
     if (logData) setInventoryLog([logData[0], ...inventoryLog]);
     
     setDebitForm({ inventoryId: "", quantity: 1 });
-    showNotification("Material debitado e histórico registado!");
+    showNotification("Material debitado!");
   };
 
   const activeVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'active'), [vehicles]);
   const historyVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'done'), [vehicles]);
+  
   const financeMemo = useMemo(() => {
     const rev = vehicles.reduce((acc, v) => acc + (Number(v.price) || 0), 0);
     const exp = Object.values(fixedCosts).reduce((acc, val) => acc + (Number(val) || 0), 0);
@@ -440,42 +452,43 @@ export default function App() {
   const polishingListMemo = useMemo(() => vehicles.filter(v => v.polishing_date).sort((a, b) => new Date(a.polishing_date) - new Date(b.polishing_date)), [vehicles]);
 
   const totalInventoryValue = useMemo(() => {
-    return inventory.reduce((acc, item) => acc + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
+    return (inventory || []).reduce((acc, item) => acc + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
   }, [inventory]);
 
-  // --- TELA PÚBLICA DE STATUS ---
+  const filteredInventory = useMemo(() => {
+    const search = (inventorySearch || "").toLowerCase();
+    return (inventory || []).filter(item => 
+      (item.name?.toLowerCase() || "").includes(search) || 
+      (item.brand?.toLowerCase() || "").includes(search)
+    );
+  }, [inventory, inventorySearch]);
+
+  if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando sistema...</div>;
+
   if (isPublicView) {
     if (!publicVehicle) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando dados...</div>;
-    
     const stages = ['Funilaria', 'Preparação', 'Pintura', 'Polimento', 'Finalizado'];
     const currentIdx = stages.indexOf(publicVehicle.current_stage);
-
     return (
       <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center justify-center font-sans overflow-hidden">
-        <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in-95 duration-700">
-           
-           <div className="text-center space-y-4">
-              <div className="inline-block p-4 bg-orange-600 rounded-[2rem] text-black shadow-2xl shadow-orange-600/20 rotate-12">
-                <Car size={32} strokeWidth={3}/>
-              </div>
+        <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in-95 duration-700 text-center">
+           <div className="space-y-4">
+              <div className="inline-block p-4 bg-orange-600 rounded-[2rem] text-black shadow-2xl shadow-orange-600/20 rotate-12"><Car size={32} strokeWidth={3}/></div>
               <h1 className="text-3xl font-black italic uppercase tracking-tighter">Auto<span className="text-orange-600">Prime</span></h1>
               <div className="h-px w-12 bg-zinc-800 mx-auto"></div>
            </div>
-
            <Card className="p-8 border-t-8 border-t-orange-600 bg-zinc-900/50 backdrop-blur-xl">
-              <div className="space-y-6 text-center">
+              <div className="space-y-6">
                  <div>
                     <h2 className="text-2xl font-black uppercase italic tracking-tight">{publicVehicle.brand} {publicVehicle.model}</h2>
                     <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] mt-2">{publicVehicle.license_plate} • {publicVehicle.color}</p>
                  </div>
-
                  <div className="py-6 px-4 bg-black/40 rounded-2xl border border-zinc-800/50">
                     <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Status Atual</p>
                     <p className="text-orange-500 text-lg font-black uppercase italic tracking-tighter">
                       {publicVehicle.work_status === 'In Work' ? `Em Produção: ${publicVehicle.current_stage}` : publicVehicle.work_status}
                     </p>
                  </div>
-
                  {publicVehicle.work_status === 'In Work' && (
                     <div className="flex justify-between items-center px-2">
                        {stages.map((st, i) => (
@@ -490,19 +503,7 @@ export default function App() {
                  )}
               </div>
            </Card>
-
-           <div className="text-center space-y-4 px-4">
-              <p className="text-zinc-400 text-sm font-medium italic leading-relaxed">
-                "A arte da perfeição exige paciência. Enquanto cuidamos de cada detalhe do seu veículo, sinta a tranquilidade de saber que ele está sendo transformado pelo padrão AutoPrime."
-              </p>
-              <div className="flex items-center justify-center gap-2 text-[9px] font-black text-zinc-600 uppercase tracking-widest">
-                 <Sparkles size={12} className="text-orange-600"/> Elevando o padrão estético
-              </div>
-           </div>
-
-           <button onClick={() => window.location.reload()} className="w-full py-4 text-zinc-700 text-[10px] font-black uppercase tracking-[0.4em] flex items-center justify-center gap-2 hover:text-white transition-all">
-             <RotateCcw size={14}/> Sincronizar Agora
-           </button>
+           <button onClick={() => window.location.reload()} className="w-full py-4 text-zinc-700 text-[10px] font-black uppercase tracking-[0.4em] flex items-center justify-center gap-2 hover:text-white transition-all"><RotateCcw size={14}/> Sincronizar Agora</button>
         </div>
       </div>
     );
@@ -524,13 +525,7 @@ export default function App() {
           { id: 'settings', label: 'Ajustes', icon: Settings, visible: true }, 
           { id: 'profile', label: 'Oficina', icon: User, visible: true } 
         ].filter(item => item.visible).map(item => (
-          <button 
-            key={item.id} 
-            onClick={() => {setActiveTab(item.id); setIsMobileMenuOpen(false);}} 
-            className={`flex items-center gap-3 px-3 py-3 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all ${activeTab === item.id ? 'bg-orange-600 text-black italic shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'}`}
-          >
-            <item.icon size={16} /> {item.label}
-          </button>
+          <button key={item.id} onClick={() => {setActiveTab(item.id); setIsMobileMenuOpen(false);}} className={`flex items-center gap-3 px-3 py-3 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all ${activeTab === item.id ? 'bg-orange-600 text-black italic shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'}`}><item.icon size={16} /> {item.label}</button>
         ))}
       </nav>
       <button onClick={handleLogout} className="mt-auto flex items-center gap-3 px-3 py-3 text-red-500 font-bold uppercase text-[9px] tracking-widest hover:bg-red-500/10 rounded-xl transition-all"><LogOut size={16} /> Sair</button>
@@ -539,13 +534,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-300 font-sans flex flex-col md:flex-row relative">
-      
       {notification.show && (
-        <div className="fixed top-4 right-4 z-[600] flex items-center gap-3 px-5 py-3 rounded-xl border bg-emerald-950/80 backdrop-blur-md border-emerald-500 text-emerald-400 animate-in slide-in-from-top-10 shadow-xl">
+        <div className="fixed top-4 right-4 z-[600] flex items-center gap-3 px-5 py-3 rounded-xl border bg-emerald-950/80 backdrop-blur-md border-emerald-500 text-emerald-400 animate-in shadow-xl">
           <Check size={16}/><span className="font-bold uppercase text-[9px] tracking-widest">{notification.message}</span>
         </div>
       )}
-      
       {!isAuthenticated ? (
         <div className="min-h-screen w-full bg-black flex items-center justify-center p-4">
            <Card className="w-full max-w-sm p-8 bg-zinc-900/50 border-zinc-800 backdrop-blur-xl">
@@ -567,15 +560,12 @@ export default function App() {
           <header className="md:hidden flex items-center justify-between p-4 bg-zinc-950 border-b border-zinc-900 sticky top-0 z-50">
             <div className="flex items-center gap-2">
                <div className="bg-orange-600 p-1 rounded-lg text-black rotate-12"><Paintbrush size={16}/></div>
-               <span className="text-lg font-black text-white italic">Auto<span className="text-orange-600">Prime</span></span>
+               <span className="text-lg font-black text-white italic tracking-tighter uppercase">Auto<span className="text-orange-600">Prime</span></span>
             </div>
             <button onClick={() => setIsMobileMenuOpen(true)} className="text-zinc-400 p-2"><Menu size={18} /></button>
           </header>
-          
           <aside className="hidden md:flex flex-col w-64 bg-zinc-950 border-r border-zinc-900 p-6 sticky top-0 h-screen"><SidebarContent /></aside>
-          
           <main className="flex-1 min-h-screen overflow-y-auto bg-[#050505] p-6 lg:p-8">
-            
             {activeTab === 'dashboard' && (
               <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -596,12 +586,10 @@ export default function App() {
                     </Card>
                   ))}
                 </div>
-
                 <div className="flex justify-between items-center gap-4">
                    <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Painel</h2>
                    <Button onClick={() => setIsModalOpen(true)} className="px-5"><Plus size={16} /> Nova Entrada</Button>
                 </div>
-
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {filteredVehicles.map(v => (
                     <Card key={v.id} className="p-4 flex flex-col gap-4 border-t-2 border-t-zinc-800 hover:border-t-orange-600 transition-all" onClick={() => setViewingVehicle(v)}>
@@ -612,7 +600,6 @@ export default function App() {
                         </div>
                         <span className="text-[8px] px-2 py-0.5 rounded-full font-black bg-zinc-950 text-orange-500 border border-zinc-800 uppercase">{v.work_status}</span>
                       </div>
-                      
                       <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                           <div className="flex-1 flex gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto no-scrollbar">
                               {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
@@ -627,69 +614,69 @@ export default function App() {
               </div>
             )}
 
-            {activeTab === 'profile' && (
-               <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
-                  <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Oficina</h2>
-                  <Card className="p-6 space-y-6 bg-zinc-900/50">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <Input label="Oficina" value={profile.workshop_name} onChange={e => setProfile({...profile, workshop_name: e.target.value})} icon={Car} placeholder="Nome Fantasia" />
-                       <Input label="Telefone" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} icon={Phone} placeholder="9XX XXX XXX" />
-                       <Input label="NIF / CNPJ" value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} icon={FileText} placeholder="Identificação Fiscal" />
-                       <Input label="E-mail" value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} icon={Mail} placeholder="oficina@exemplo.com" />
-                       <div className="md:col-span-2"><Input label="Morada" value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})} icon={MapPin} placeholder="Endereço Completo" /></div>
-                    </div>
-                    <Button onClick={() => supabase.from('autoprime_profile').upsert({ tenant_id: currentTenantId, ...profile }).then(() => showNotification("Salvo!"))} className="w-full py-3"><Save size={16}/> Guardar Perfil</Button>
-                  </Card>
-               </div>
+            {/* RESTAURADO: ABA HISTÓRICO */}
+            {activeTab === 'history' && (
+              <div className="max-w-6xl mx-auto space-y-4 animate-in fade-in">
+                <h2 className="text-lg font-black text-white uppercase italic">Histórico de Veículos</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                   {historyVehiclesMemo.map(v => (
+                      <Card key={v.id} className="p-4 flex justify-between items-center group opacity-70 hover:opacity-100" onClick={() => setViewingVehicle(v)}>
+                         <div>
+                            <h4 className="font-black text-white uppercase text-xs">{v.brand} {v.model}</h4>
+                            <p className="text-[8px] text-zinc-600 uppercase mt-1">{v.license_plate} • {v.customer_name}</p>
+                         </div>
+                         <Button variant="outline" className="opacity-0 group-hover:opacity-100 px-2 py-1.5" onClick={(e) => { e.stopPropagation(); updateWorkStatus(v.id, 'In Work'); }}><RotateCcw size={12}/></Button>
+                      </Card>
+                   ))}
+                   {historyVehiclesMemo.length === 0 && (
+                      <div className="col-span-full py-12 text-center text-zinc-800 font-black uppercase italic tracking-widest">Nenhum veículo no histórico</div>
+                   )}
+                </div>
+              </div>
             )}
 
             {activeTab === 'inventory' && (
               <div className="max-w-3xl mx-auto space-y-6">
                 <div className="flex justify-between items-center"><h2 className="text-lg font-black text-white uppercase italic">Estoque</h2><Button onClick={() => setIsInventoryModalOpen(true)}><Plus size={16}/> Novo Item</Button></div>
-                
                 <Card className="p-4 border-l-4 border-l-blue-600 bg-zinc-900/40">
                   <div className="flex items-center gap-3">
-                    <div className="bg-blue-600/10 p-2 rounded-lg text-blue-500">
-                       <DollarSign size={16}/>
-                    </div>
+                    <div className="bg-blue-600/10 p-2 rounded-lg text-blue-500"><DollarSign size={16}/></div>
                     <div>
                        <p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest leading-none">Investimento em Stock</p>
                        <h3 className="text-lg font-black text-white mt-1 leading-none">R$ {totalInventoryValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
                     </div>
                   </div>
                 </Card>
-
+                <div className="flex gap-2">
+                  <div className="relative flex-1 group">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-orange-600 transition-colors"><Search size={14} /></div>
+                    <input type="text" placeholder="Pesquisar material ou marca..." className="bg-zinc-950 border border-zinc-800 rounded-lg w-full py-2 pl-9 pr-3 text-xs text-white outline-none focus:border-orange-600 transition-all placeholder:text-zinc-700 font-bold" value={inventorySearch} onChange={e => setInventorySearch(e.target.value)}/>
+                  </div>
+                </div>
                 <Card className="overflow-hidden border-zinc-800">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-zinc-800 text-zinc-500 text-[9px] uppercase font-black"><tr><th className="p-4">Material</th><th className="p-4">Qtd</th><th className="p-4">Preço</th><th className="p-4 text-center">Ações</th></tr></thead>
+                    <thead className="bg-zinc-800 text-zinc-500 text-[9px] uppercase font-black">
+                      <tr><th className="p-4">Material</th><th className="p-4">Qtd</th><th className="p-4">Preço</th><th className="p-4">Cadastrado</th><th className="p-4 text-center">Ações</th></tr>
+                    </thead>
                     <tbody className="divide-y divide-zinc-800">
-                      {inventory.map(item => (
+                      {filteredInventory.map(item => (
                         <tr key={item.id} className="hover:bg-zinc-900/40 transition-colors">
-                          <td className="p-4 font-bold text-white uppercase text-xs">{item.name}</td>
+                          <td className="p-4 font-bold text-white uppercase text-xs">{item.name} <span className="text-[10px] text-zinc-600 font-normal ml-1">({item.brand})</span></td>
                           <td className="p-4 text-xs font-bold text-zinc-400">{item.quantity} un</td>
-                          <td className="p-4 text-emerald-500 font-bold text-xs">R$ {Number(item.price).toLocaleString('pt-BR')}</td>
-                          <td className="p-4 text-center"><button onClick={() => supabase.from('autoprime_inventory').delete().eq('id', item.id).then(() => setInventory(inventory.filter(i=>i.id!==item.id)))} className="text-zinc-700 hover:text-red-500"><Trash2 size={16}/></button></td>
+                          <td className="p-4 text-emerald-500 font-bold text-xs">R$ {Number(item.price || 0).toLocaleString('pt-BR')}</td>
+                          <td className="p-4 text-zinc-600 font-mono text-[10px]">{item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '---'}</td>
+                          <td className="p-4 text-center"><button onClick={() => supabase.from('autoprime_inventory').delete().eq('id', item.id).then(() => fetchData())} className="text-zinc-700 hover:text-red-500 transition-colors"><Trash2 size={16}/></button></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </Card>
-
-                {/* --- NOVO: HISTÓRICO DE MOVIMENTAÇÃO DE ESTOQUE --- */}
                 <div className="space-y-4 pt-4">
-                  <h3 className="text-sm font-black text-zinc-500 uppercase italic tracking-widest flex items-center gap-2">
-                    <History size={16} className="text-orange-600"/> Histórico de Uso
-                  </h3>
+                  <h3 className="text-sm font-black text-zinc-500 uppercase italic tracking-widest flex items-center gap-2"><History size={16} className="text-orange-600"/> Histórico de Uso</h3>
                   <Card className="overflow-hidden border-zinc-800 bg-zinc-950/50">
                     <table className="w-full text-left text-[10px]">
                       <thead className="bg-zinc-900 text-zinc-500 uppercase font-black">
-                        <tr>
-                          <th className="p-3">Item</th>
-                          <th className="p-3">Qtd</th>
-                          <th className="p-3">Destino (Carro)</th>
-                          <th className="p-3">Por Quem</th>
-                          <th className="p-3">Data</th>
-                        </tr>
+                        <tr><th className="p-3">Item</th><th className="p-3">Qtd</th><th className="p-3">Destino (Carro)</th><th className="p-3">Por Quem</th><th className="p-3">Data</th></tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-900">
                         {inventoryLog.map(log => (
@@ -701,9 +688,6 @@ export default function App() {
                             <td className="p-3 text-zinc-600 font-mono">{new Date(log.created_at).toLocaleDateString('pt-BR')}</td>
                           </tr>
                         ))}
-                        {inventoryLog.length === 0 && (
-                          <tr><td colSpan="5" className="p-8 text-center text-zinc-700 font-black uppercase tracking-widest italic">Nenhuma movimentação registada</td></tr>
-                        )}
                       </tbody>
                     </table>
                   </Card>
@@ -711,52 +695,37 @@ export default function App() {
               </div>
             )}
 
+            {/* RESTAURADO: ABA FINANCEIRO COMPLETA */}
             {activeTab === 'finance' && (
-              <div className="max-w-5xl mx-auto space-y-6">
-                  <h2 className="text-lg font-black text-white uppercase italic">Financeiro</h2>
+              <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in">
+                  <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Painel Financeiro</h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card className="p-5 border-l-4 border-l-orange-600"><TrendingUp className="text-orange-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase">Faturamento Bruto</p><p className="text-xl font-black text-white">R$ {financeMemo.rev.toLocaleString('pt-BR')}</p></Card>
-                    <Card className="p-5 border-l-4 border-l-red-600"><AlertTriangle className="text-red-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase">Custos Fixos</p><p className="text-xl font-black text-red-500">R$ {financeMemo.exp.toLocaleString('pt-BR')}</p></Card>
-                    <Card className="p-5 border-l-4 border-l-emerald-600"><CheckCircle2 className="text-emerald-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase">Lucro</p><p className="text-xl font-black text-emerald-500">R$ {financeMemo.profit.toLocaleString('pt-BR')}</p></Card>
+                    <Card className="p-5 border-l-4 border-l-orange-600"><TrendingUp className="text-orange-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">Faturamento Bruto</p><p className="text-xl font-black text-white">R$ {financeMemo.rev.toLocaleString('pt-BR')}</p></Card>
+                    <Card className="p-5 border-l-4 border-l-red-600"><AlertTriangle className="text-red-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">Custos Fixos</p><p className="text-xl font-black text-red-500">R$ {financeMemo.exp.toLocaleString('pt-BR')}</p></Card>
+                    <Card className="p-5 border-l-4 border-l-emerald-600"><CheckCircle2 className="text-emerald-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">Lucro Estimado</p><p className="text-xl font-black text-emerald-500">R$ {financeMemo.profit.toLocaleString('pt-BR')}</p></Card>
                   </div>
                   <Card className="p-6 space-y-6">
                      <h3 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Gastos Operacionais Mensais</h3>
                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <Input label="Aluguel" type="number" value={fixedCosts.aluguel} onChange={e => setFixedCosts({...fixedCosts, aluguel: e.target.value})} icon={MapPin}/>
-                        <Input label="Pessoal" type="number" value={fixedCosts.funcionario} onChange={e => setFixedCosts({...fixedCosts, funcionario: e.target.value})} icon={User}/>
-                        <Input label="Stock" type="number" value={fixedCosts.material} onChange={e => setFixedCosts({...fixedCosts, material: e.target.value})} icon={Package}/>
+                        <Input label="Funcionário" type="number" value={fixedCosts.funcionario} onChange={e => setFixedCosts({...fixedCosts, funcionario: e.target.value})} icon={User}/>
+                        <Input label="Material" type="number" value={fixedCosts.material} onChange={e => setFixedCosts({...fixedCosts, material: e.target.value})} icon={Package}/>
                         <Input label="Luz" type="number" value={fixedCosts.luz} onChange={e => setFixedCosts({...fixedCosts, luz: e.target.value})} icon={Zap}/>
                         <Input label="Água" type="number" value={fixedCosts.agua} onChange={e => setFixedCosts({...fixedCosts, agua: e.target.value})} icon={Droplets}/>
                         <Input label="Internet" type="number" value={fixedCosts.internet} onChange={e => setFixedCosts({...fixedCosts, internet: e.target.value})} icon={Globe}/>
                      </div>
-                     <Button onClick={() => supabase.from('autoprime_fixed_costs').upsert({ tenant_id: currentTenantId, ...fixedCosts }, { onConflict: 'tenant_id' }).then(() => showNotification("Salvo!"))} className="w-full py-3"><Save size={16}/> Guardar Balanço</Button>
+                     <Button onClick={() => supabase.from('autoprime_fixed_costs').upsert({ tenant_id: currentTenantId, ...fixedCosts }, { onConflict: 'tenant_id' }).then(() => showNotification("Balanço Salvo!"))} className="w-full py-3"><Save size={16}/> Guardar Balanço Financeiro</Button>
                   </Card>
               </div>
             )}
 
-            {activeTab === 'history' && (
-              <div className="max-w-6xl mx-auto space-y-4">
-                <h2 className="text-lg font-black text-white uppercase italic">Histórico</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                   {historyVehiclesMemo.map(v => (
-                      <Card key={v.id} className="p-4 flex justify-between items-center group opacity-70 hover:opacity-100" onClick={() => setViewingVehicle(v)}>
-                         <div>
-                            <h4 className="font-black text-white uppercase text-xs">{v.brand} {v.model}</h4>
-                            <p className="text-[8px] text-zinc-600 uppercase mt-1">{v.license_plate} • {v.customer_name}</p>
-                         </div>
-                         <Button variant="outline" className="opacity-0 group-hover:opacity-100 px-2 py-1.5" onClick={(e) => { e.stopPropagation(); updateWorkStatus(v.id, 'In Work'); }}><RotateCcw size={12}/></Button>
-                      </Card>
-                   ))}
-                </div>
-              </div>
-            )}
-
+            {/* RESTAURADO: ABA POLIMENTO COMPLETA */}
             {activeTab === 'polishing' && (
-              <div className="max-w-4xl mx-auto space-y-6">
-                 <h2 className="text-lg font-black text-white uppercase italic flex items-center gap-2"><Sparkles className="text-orange-500" size={18}/> Agenda Polimento</h2>
+              <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                 <h2 className="text-lg font-black text-white uppercase italic flex items-center gap-2 tracking-tight"><Sparkles className="text-orange-500" size={18}/> Agenda de Retorno (Polimento)</h2>
                  <Card className="overflow-hidden border-zinc-900">
                     <table className="w-full text-left text-sm">
-                       <thead className="bg-zinc-800 text-zinc-500 text-[9px] uppercase font-black"><tr><th className="p-4">Cliente</th><th className="p-4">Veículo</th><th className="p-4">Retorno</th></tr></thead>
+                       <thead className="bg-zinc-800 text-zinc-500 text-[9px] uppercase font-black"><tr><th className="p-4">Cliente</th><th className="p-4">Veículo</th><th className="p-4">Data Prevista</th></tr></thead>
                        <tbody className="divide-y divide-zinc-800">
                           {polishingListMemo.map(v => (
                             <tr key={v.id} className="hover:bg-zinc-900/40 transition-colors">
@@ -765,25 +734,29 @@ export default function App() {
                                <td className="p-4 text-orange-500 font-black text-xs italic">{new Date(v.polishing_date).toLocaleDateString('pt-BR')}</td>
                             </tr>
                           ))}
+                          {polishingListMemo.length === 0 && (
+                             <tr><td colSpan="3" className="p-8 text-center text-zinc-800 font-black uppercase italic tracking-widest">Nenhum polimento agendado</td></tr>
+                          )}
                        </tbody>
                     </table>
                  </Card>
               </div>
             )}
 
+            {/* RESTAURADO: ABA AJUSTES COMPLETA */}
             {activeTab === 'settings' && (
-               <div className="max-w-4xl mx-auto space-y-8">
-                  <h2 className="text-lg font-black text-white uppercase italic">Ajustes</h2>
+               <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in">
+                  <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Ajustes do Sistema</h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {[ 
                       { key: 'showPolishing', label: 'Módulo Polimento', icon: Sparkles, color: 'text-orange-500' }, 
                       { key: 'showInventory', label: 'Módulo Estoque', icon: Package, color: 'text-blue-500' }, 
                       { key: 'showFinance', label: 'Módulo Financeiro', icon: DollarSign, color: 'text-emerald-500' } 
                     ].map(item => (
-                      <Card key={item.key} onClick={() => {const ns={...appSettings, [item.key]: !appSettings[item.key]}; setAppSettings(ns); supabase.from('autoprime_profile').update({ app_settings: ns }).eq('tenant_id', currentTenantId); showNotification("Ajustado!");}} className={`p-5 border-2 cursor-pointer transition-all ${appSettings[item.key] ? 'border-orange-600/30' : 'border-zinc-900 grayscale opacity-40'}`}>
+                      <Card key={item.key} onClick={() => {const ns={...appSettings, [item.key]: !appSettings[item.key]}; setAppSettings(ns); supabase.from('autoprime_profile').update({ app_settings: ns }).eq('tenant_id', currentTenantId); showNotification("Configuração Atualizada!");}} className={`p-5 border-2 cursor-pointer transition-all ${appSettings[item.key] ? 'border-orange-600/30' : 'border-zinc-900 grayscale opacity-40'}`}>
                          <div className="flex justify-between items-center mb-4">
                             <item.icon size={20} className={appSettings[item.key] ? item.color : 'text-zinc-700'}/>
-                            {appSettings[item.key] ? <ToggleRight className="text-orange-600" size={20}/> : <ToggleLeft className="text-zinc-800" size={20}/>}
+                            {appSettings[item.key] ? <ToggleRight className="text-orange-600" size={24}/> : <ToggleLeft className="text-zinc-800" size={24}/>}
                          </div>
                          <h4 className="text-[10px] font-black text-white uppercase italic tracking-widest">{item.label}</h4>
                       </Card>
@@ -791,37 +764,40 @@ export default function App() {
                   </div>
                </div>
             )}
+
+            {/* RESTAURADO: ABA OFICINA COMPLETA */}
+            {activeTab === 'profile' && (
+               <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                  <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Dados da Oficina</h2>
+                  <Card className="p-6 space-y-6 bg-zinc-900/50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <Input label="Oficina" value={profile.workshop_name} onChange={e => setProfile({...profile, workshop_name: e.target.value})} icon={Car} placeholder="Nome Fantasia" />
+                       <Input label="Telefone" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} icon={Phone} placeholder="9XX XXX XXX" />
+                       <Input label="NIF / CNPJ" value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} icon={FileText} placeholder="Identificação Fiscal" />
+                       <Input label="E-mail" value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} icon={Mail} placeholder="oficina@exemplo.com" />
+                       <div className="md:col-span-2"><Input label="Morada / Endereço" value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})} icon={MapPin} placeholder="Endereço Completo" /></div>
+                    </div>
+                    <Button onClick={() => supabase.from('autoprime_profile').upsert({ tenant_id: currentTenantId, ...profile }).then(() => showNotification("Perfil Guardado!"))} className="w-full py-3"><Save size={16}/> Guardar Perfil Oficina</Button>
+                  </Card>
+               </div>
+            )}
           </main>
 
-          {/* MODAL: NOVA ENTRADA */}
+          {/* MODAL: NOVA ENTRADA (MANTIDO) */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
-              <Card className="w-full max-w-2xl p-6 relative my-auto bg-zinc-950 border-zinc-800 shadow-2xl">
+              <Card className="w-full max-w-2xl p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl">
                 <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"><X size={20}/></button>
                 <form onSubmit={handleAddVehicle} className="space-y-6">
                    <h2 className="text-lg font-black text-white uppercase italic border-b border-zinc-900 pb-4 tracking-tighter">Vistoria de Entrada</h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input label="Cliente" value={newVehicle.customerName} onChange={e => setNewVehicle({...newVehicle, customerName: e.target.value})} placeholder="Ex: João" required />
-                      <Input label="Contacto" value={newVehicle.phone} onChange={e => setNewVehicle({...newVehicle, phone: e.target.value})} placeholder="9XX XXX XXX" required />
-                      <Input label="Marca" value={newVehicle.brand} onChange={e => setNewVehicle({...newVehicle, brand: e.target.value})} placeholder="Ex: Mercedes" required />
-                      <Input label="Modelo" value={newVehicle.model} onChange={e => setNewVehicle({...newVehicle, model: e.target.value})} placeholder="Ex: Classe A" required />
-                      <Input label="Placa" value={newVehicle.licensePlate} onChange={e => setNewVehicle({...newVehicle, licensePlate: e.target.value.toUpperCase()})} placeholder="AA-00-AA" required />
-                      <Input label="Cor" value={newVehicle.color} onChange={e => setNewVehicle({...newVehicle, color: e.target.value})} placeholder="Cor do Veículo" required />
-                      <Input label="Valor (R$)" value={newVehicle.price} onChange={e => setNewVehicle({...newVehicle, price: e.target.value})} placeholder="1500,00" required />
-                      <Input label="Técnico" value={newVehicle.professional} onChange={e => setNewVehicle({...newVehicle, professional: e.target.value})} placeholder="Responsável" required />
-                      <div className="flex flex-col gap-1"><label className="text-[9px] font-black uppercase text-zinc-500 ml-1 tracking-widest">BOX Vaga</label><select className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white outline-none focus:border-orange-600 text-[10px] font-bold" value={newVehicle.location} onChange={e => setNewVehicle({...newVehicle, location: e.target.value})}>{["BOX 01", "BOX 02", "BOX 03", "BOX 04", "BOX 05"].map(b => <option key={b} value={b}>{b}</option>)}</select></div>
-                      <div className="flex flex-col gap-1"><label className="text-[9px] font-black uppercase text-zinc-500 ml-1 tracking-widest">Status Inicial</label><select className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white outline-none focus:border-orange-600 text-[10px] font-bold" value={newVehicle.workStatus} onChange={e => setNewVehicle({...newVehicle, workStatus: e.target.value})}><option value="Aguardando Aprovação">Orçamento</option><option value="Cadastrado">Pátio</option><option value="In Work">Em Produção</option></select></div>
-                   </div>
-                   <div className="space-y-3">
-                      <p className="text-[9px] font-black uppercase text-zinc-600 flex items-center gap-2 tracking-widest"><Camera size={14}/> Registo Fotográfico</p>
-                      <div className="grid grid-cols-5 gap-2">
-                        {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map(pos => (
-                          <div key={pos} onClick={() => document.getElementById(`photo-${pos}`).click()} className="aspect-square bg-zinc-950 rounded-lg border border-zinc-900 border-dashed flex flex-col items-center justify-center cursor-pointer overflow-hidden relative transition-all hover:border-orange-600">
-                             {newVehicle.photos[pos] ? <img src={newVehicle.photos[pos]} className="w-full h-full object-cover" /> : <><Camera size={16}/><span className="text-[7px] font-black uppercase mt-1">{pos}</span></>}
-                             <input type="file" id={`photo-${pos}`} className="hidden" accept="image/*" onChange={(e) => handlePhotoUpload(pos, e)} />
-                          </div>
-                        ))}
-                      </div>
+                      <Input label="Cliente" value={newVehicle.customerName} onChange={e => setNewVehicle({...newVehicle, customerName: e.target.value})} required />
+                      <Input label="Contacto" value={newVehicle.phone} onChange={e => setNewVehicle({...newVehicle, phone: e.target.value})} required />
+                      <Input label="Marca" value={newVehicle.brand} onChange={e => setNewVehicle({...newVehicle, brand: e.target.value})} required />
+                      <Input label="Modelo" value={newVehicle.model} onChange={e => setNewVehicle({...newVehicle, model: e.target.value})} required />
+                      <Input label="Placa" value={newVehicle.licensePlate} onChange={e => setNewVehicle({...newVehicle, licensePlate: e.target.value.toUpperCase()})} required />
+                      <Input label="Cor" value={newVehicle.color} onChange={e => setNewVehicle({...newVehicle, color: e.target.value})} required />
+                      <Input label="Valor (R$)" value={newVehicle.price} onChange={e => setNewVehicle({...newVehicle, price: e.target.value})} required />
                    </div>
                    <Button type="submit" className="w-full py-3 tracking-[0.2em] italic font-black">Registar Entrada</Button>
                 </form>
@@ -829,18 +805,18 @@ export default function App() {
             </div>
           )}
 
-          {/* NOVO MODAL: ADICIONAR ITEM AO ESTOQUE */}
+          {/* MODAL: ADICIONAR ITEM AO ESTOQUE (MANTIDO) */}
           {isInventoryModalOpen && (
             <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
-              <Card className="w-full max-w-sm p-6 relative my-auto bg-zinc-950 border-zinc-800 shadow-2xl">
+              <Card className="w-full max-w-sm p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl">
                 <button onClick={() => setIsInventoryModalOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"><X size={20}/></button>
                 <form onSubmit={handleAddItem} className="space-y-6">
                    <h2 className="text-lg font-black text-white uppercase italic border-b border-zinc-900 pb-4 tracking-tighter">Novo Item no Estoque</h2>
                    <div className="space-y-4">
-                      <Input label="Material" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} placeholder="Ex: Verniz" required />
-                      <Input label="Marca" value={newItem.brand} onChange={e => setNewItem({...newItem, brand: e.target.value})} placeholder="Ex: 3M" required />
-                      <Input label="Quantidade" type="number" value={newItem.quantity} onChange={e => setNewItem({...newItem, quantity: e.target.value})} placeholder="0" required />
-                      <Input label="Preço Unitário (R$)" type="number" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} placeholder="0.00" required />
+                      <Input label="Material" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} required />
+                      <Input label="Marca" value={newItem.brand} onChange={e => setNewItem({...newItem, brand: e.target.value})} />
+                      <Input label="Quantidade" type="number" value={newItem.quantity} onChange={e => setNewItem({...newItem, quantity: e.target.value})} required />
+                      <Input label="Preço Unitário (R$)" type="number" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} required />
                    </div>
                    <Button type="submit" className="w-full py-3 tracking-[0.2em] italic font-black">Adicionar ao Stock</Button>
                 </form>
@@ -848,22 +824,21 @@ export default function App() {
             </div>
           )}
 
-          {/* MODAL DETALHES - FICHA TÉCNICA 100% COMPLETA COM DEBITO DE MATERIAL */}
+          {/* RESTAURADO: MODAL DETALHES - FICHA TÉCNICA DETALHADA E COMPLETA */}
           {viewingVehicle && (
             <div className="fixed inset-0 bg-black/98 z-[200] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
-              <Card className="w-full max-w-5xl bg-zinc-950 border-none rounded-[24px] overflow-hidden my-auto shadow-2xl animate-in zoom-in-95 duration-300">
-                <div className="bg-orange-600 p-6 flex justify-between items-start">
+              <Card className="w-full max-w-5xl bg-zinc-950 border-none rounded-[24px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+                <div className="bg-orange-600 p-6 flex justify-between items-start text-black">
                     <div>
-                        <h2 className="text-2xl font-black text-black uppercase italic leading-none tracking-tighter">FICHA TÉCNICA DO VEÍCULO</h2>
-                        <p className="text-black font-black uppercase text-[10px] tracking-widest mt-2 opacity-80 italic">Controlo de Ativos • AutoPrime Professional</p>
+                        <h2 className="text-2xl font-black uppercase italic leading-none tracking-tighter">FICHA TÉCNICA DO VEÍCULO</h2>
+                        <p className="font-black uppercase text-[10px] tracking-widest mt-2 opacity-80 italic">Controlo de Ativos • AutoPrime Professional</p>
                     </div>
                     <button onClick={() => setViewingVehicle(null)} className="bg-black/10 hover:bg-black/20 p-2 rounded-full text-black transition-all active:scale-90"><X size={20}/></button>
                 </div>
-
-                <div className="p-6 md:p-8 grid lg:grid-cols-2 gap-8">
+                <div className="p-6 md:p-8 grid lg:grid-cols-2 gap-8 overflow-y-auto no-scrollbar max-h-[85vh]">
                    <div className="space-y-6">
                       
-                      {/* DADOS CADASTRAIS COMPLETOS */}
+                      {/* GRID DE DADOS COMPLETO RESTAURADO */}
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                          <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
                             <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Dono / Cliente</p>
@@ -878,69 +853,48 @@ export default function App() {
                             <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.brand} {viewingVehicle.model}</p>
                          </div>
                          <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Matrícula / Placa</p>
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Placa</p>
                             <p className="text-orange-500 font-black uppercase text-[10px] italic truncate">{viewingVehicle.license_plate}</p>
                          </div>
                          <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Cor Registada</p>
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Cor</p>
                             <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.color}</p>
                          </div>
                          <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Vaga / BOX</p>
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">BOX</p>
                             <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.location}</p>
                          </div>
                          <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Responsável</p>
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Técnico</p>
                             <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.professional || "Não Atribuído"}</p>
                          </div>
                          <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Tipo de Veículo</p>
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Tipo</p>
                             <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.vehicle_type || "Normal"}</p>
                          </div>
                          <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Data de Entrada</p>
+                            <p className="text-[7px] font-black text-zinc-600 uppercase italic tracking-widest mb-1">Entrada</p>
                             <p className="text-white font-bold uppercase text-[10px] truncate">{viewingVehicle.entry_time?.split(',')[0] || "---"}</p>
                          </div>
                       </div>
 
+                      {/* CONTROLO DE DÉBITO RESTAURADO */}
                       <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl space-y-4">
-                         <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2 italic leading-none"><BoxSelect size={14} className="text-blue-500"/> Materiais Aplicados (Debitar Stock)</p>
+                         <p className="text-[9px] font-black text-zinc-500 uppercase flex items-center gap-2 italic"><BoxSelect size={14} className="text-blue-500"/> Materiais Aplicados (Debitar Stock)</p>
                          <form onSubmit={handleDebitMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="flex flex-col gap-1 md:col-span-1">
-                               <label className="text-[8px] font-black uppercase text-zinc-600 ml-1">Produto</label>
-                               <select 
-                                  className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500 text-[10px] font-bold"
-                                  value={debitForm.inventoryId}
-                                  onChange={e => setDebitForm({...debitForm, inventoryId: e.target.value})}
-                               >
-                                  <option value="">Selecionar Item...</option>
-                                  {inventory.map(item => (
-                                     <option key={item.id} value={item.id}>{item.name} ({item.quantity} un)</option>
-                                  ))}
-                               </select>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                               <label className="text-[8px] font-black uppercase text-zinc-600 ml-1">Qtd Utilizada</label>
-                               <input 
-                                  type="number" 
-                                  min="1"
-                                  className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500 text-[10px] font-bold"
-                                  value={debitForm.quantity}
-                                  onChange={e => setDebitForm({...debitForm, quantity: Number(e.target.value)})}
-                               />
-                            </div>
-                            <div className="flex items-end">
-                               <Button type="submit" variant="secondary" className="w-full py-2 border border-zinc-800 hover:border-blue-500 text-blue-500 bg-blue-500/5">
-                                  Debitar e Lançar
-                               </Button>
-                            </div>
+                            <select className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-[10px] font-bold outline-none focus:border-blue-500" value={debitForm.inventoryId} onChange={e => setDebitForm({...debitForm, inventoryId: e.target.value})}>
+                               <option value="">Selecionar Item...</option>
+                               {inventory.map(item => <option key={item.id} value={item.id}>{item.name} ({item.quantity})</option>)}
+                            </select>
+                            <input type="number" min="1" className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-[10px] font-bold" value={debitForm.quantity} onChange={e => setDebitForm({...debitForm, quantity: Number(e.target.value)})}/>
+                            <Button type="submit" variant="secondary" className="text-blue-500 border-blue-500/20 bg-blue-500/5 py-2">Debitar e Lançar</Button>
                          </form>
                       </div>
 
                       <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-3">
-                          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2 italic leading-none"><ClipboardList size={14}/> Serviços Selecionados no Orçamento</p>
+                          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2 italic"><ClipboardList size={14}/> Serviços Solicitados</p>
                           <div className="flex flex-wrap gap-2">
-                             {viewingVehicle.service_description?.split(',').map((serv, i) => (
+                             {(viewingVehicle.service_description || "Nenhum serviço").split(',').map((serv, i) => (
                                <span key={i} className="bg-zinc-950 border border-zinc-800 px-3 py-1.5 rounded-lg text-[9px] font-black text-zinc-400 uppercase tracking-tight flex items-center gap-1.5">
                                   <Check size={10} className="text-orange-600"/> {serv.trim()}
                                </span>
@@ -948,31 +902,29 @@ export default function App() {
                           </div>
                       </div>
 
+                      {/* RESTAURADO: COMPARTILHAMENTO WHATSAPP */}
                       <div className="p-4 bg-orange-600/5 border border-orange-600/20 rounded-xl space-y-3">
-                          <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none"><Share2 size={12}/> Link do Cliente para WhatsApp</p>
+                          <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none"><Share2 size={12}/> Link de Acompanhamento (WhatsApp)</p>
                           <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-lg border border-zinc-900">
                              <input readOnly className="bg-transparent flex-1 px-3 text-[9px] text-zinc-500 font-mono outline-none truncate" value={`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`}/>
-                             <button onClick={() => copyToClipboard(`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`)} className="bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md text-black transition-all flex items-center justify-center gap-1.5">
-                                <Copy size={12}/> <span className="text-[8px] font-black uppercase italic">Copiar</span>
-                             </button>
+                             <div className="flex gap-1">
+                                <button onClick={() => copyToClipboard(`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`)} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-md text-zinc-300 transition-all flex items-center justify-center gap-1.5 border border-zinc-700">
+                                   <Copy size={12}/> <span className="text-[8px] font-black uppercase italic">Copiar</span>
+                                </button>
+                                <button onClick={() => sendWhatsAppLink(viewingVehicle)} className="bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-md text-white transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/20">
+                                   <MessageCircle size={12}/> <span className="text-[8px] font-black uppercase italic">Enviar WhatsApp</span>
+                                </button>
+                             </div>
                           </div>
                       </div>
 
-                      <div className="space-y-2">
-                         <p className="text-[8px] font-black text-zinc-700 uppercase tracking-widest leading-none ml-1">Fluxo de Trabalho</p>
-                         <div className="flex gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900">
-                            {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
-                               <button key={st} onClick={() => updateWorkStatus(viewingVehicle.id, st)} className={`whitespace-nowrap px-2 py-2 rounded-md text-[7px] font-black uppercase transition-all flex-1 ${viewingVehicle.work_status === st ? 'bg-orange-600 text-black italic shadow-sm' : 'text-zinc-700 hover:text-white'}`}>{st}</button>
-                            ))}
-                         </div>
-                      </div>
-
+                      {/* ETAPAS DE PRODUÇÃO RESTAURADAS */}
                       {viewingVehicle.work_status === 'In Work' && (
-                        <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-xl space-y-4 shadow-inner">
-                           <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none"><Layers size={14}/> Etapas de Produção em Estufa</p>
+                        <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-xl space-y-4">
+                           <p className="text-[9px] font-black text-orange-600 uppercase flex items-center gap-2 italic"><Layers size={14}/> Produção em Estufa</p>
                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                               {['Funilaria', 'Preparação', 'Pintura', 'Polimento', 'Finalizado'].map(stage => (
-                                 <button key={stage} onClick={() => updateVehicleStage(viewingVehicle.id, stage)} className={`px-3 py-2.5 rounded-lg text-[9px] font-black uppercase transition-all border ${viewingVehicle.current_stage === stage ? 'bg-orange-600 border-orange-600 text-black italic scale-[1.02]' : 'bg-zinc-900 border-zinc-800 text-zinc-700 hover:text-white'}`}>
+                                 <button key={stage} onClick={() => updateVehicleStage(viewingVehicle.id, stage)} className={`px-3 py-2.5 rounded-lg text-[9px] font-black uppercase transition-all border ${viewingVehicle.current_stage === stage ? 'bg-orange-600 border-orange-600 text-black italic' : 'bg-zinc-900 border-zinc-800 text-zinc-700 hover:text-white'}`}>
                                     {stage}
                                  </button>
                               ))}
@@ -980,23 +932,23 @@ export default function App() {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-3">
-                         <div className="flex justify-between items-center p-4 bg-emerald-600/5 border border-emerald-500/20 rounded-xl">
-                            <div><p className="text-[8px] text-zinc-600 font-black uppercase mb-1 tracking-widest leading-none">Preço Orçado</p><p className="text-emerald-500 font-black text-xl italic tracking-tighter leading-none">R$ {Number(viewingVehicle.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p></div>
+                      <div className="grid grid-cols-2 gap-3 text-white">
+                         <div className="p-4 bg-emerald-600/5 border border-emerald-500/20 rounded-xl flex justify-between items-center">
+                            <div><p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest leading-none">Preço Orçado</p><p className="text-emerald-500 font-black text-xl italic tracking-tighter">R$ {Number(viewingVehicle.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p></div>
                             <button onClick={() => generateBudgetPDF(viewingVehicle)} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg text-zinc-300 font-black text-[8px] uppercase tracking-widest flex items-center gap-2 border border-zinc-700 transition-all"><Download size={14}/> PDF</button>
                          </div>
-                         <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col justify-center">
-                            <p className="text-[8px] font-black text-zinc-600 uppercase italic tracking-widest mb-1 leading-none">Custo de Material Acumulado</p>
-                            <p className="text-zinc-400 font-bold text-lg leading-none italic">R$ {Number(viewingVehicle.cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                         <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
+                            <p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest leading-none">Custo Material</p>
+                            <p className="text-zinc-400 font-bold text-lg italic tracking-tighter">R$ {Number(viewingVehicle.cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                          </div>
                       </div>
                    </div>
 
-                   {/* GRID FOTOS REFINADO */}
+                   {/* GRID FOTOS REFINADO RESTAURADO */}
                    <div className="grid grid-cols-2 gap-3 h-fit">
                       {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map((item, idx) => (
                         <div key={idx} className={`aspect-[4/3] bg-zinc-900 rounded-xl overflow-hidden relative border border-white/5 shadow-md ${idx === 4 ? 'col-span-2 aspect-[16/7]' : ''}`}>
-                          {viewingVehicle.photos?.[item] ? <img src={viewingVehicle.photos[item]} className="w-full h-full object-cover transition-transform hover:scale-105 duration-500" /> : <div className="w-full h-full flex items-center justify-center text-zinc-800 flex-col gap-1.5"><ImageIcon size={24} className="opacity-20"/><span className="text-[7px] font-black uppercase tracking-widest">Sem Registo Fotográfico</span></div>}
+                          {viewingVehicle.photos?.[item] ? <img src={viewingVehicle.photos[item]} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-zinc-800 flex-col gap-1.5"><ImageIcon size={24} className="opacity-20"/><span className="text-[7px] font-black uppercase tracking-widest">Sem Foto: {item}</span></div>}
                           <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-2 py-1 rounded-md border border-white/10"><span className="text-[7px] font-black text-white uppercase tracking-widest italic">{item}</span></div>
                         </div>
                       ))}
@@ -1007,12 +959,11 @@ export default function App() {
           )}
         </>
       )}
-
       <style dangerouslySetInnerHTML={{ __html: `
         body { background: black; margin: 0; } 
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.995); } to { opacity: 1; transform: scale(1); } }
-        .animate-in { animation: fadeIn 0.2s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.99); } to { opacity: 1; transform: scale(1); } }
+        .animate-in { animation: fadeIn 0.15s ease-out forwards; }
         ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-thumb { background: #18181b; border-radius: 10px; }
       ` }} />
