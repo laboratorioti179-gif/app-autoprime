@@ -187,6 +187,30 @@ export default function App() {
   useEffect(() => {
     document.title = "Auto Prime";
     
+    // Ícone SVG personalizado (Fundo laranja com símbolo de pincel preto)
+    const iconSvg = `
+      <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="180" height="180" rx="40" fill="#EA580C"/>
+        <path d="M50 120C50 120 65 80 100 75C135 70 150 100 180 95" stroke="black" stroke-width="14" stroke-linecap="round"/>
+        <circle cx="50" cy="120" r="10" fill="black" />
+      </svg>
+    `.trim();
+    const iconDataUrl = `data:image/svg+xml;base64,${btoa(iconSvg)}`;
+
+    // Adicionar link para ícone (Favicon e Apple Touch Icon)
+    const setIcon = (rel) => {
+      let link = document.querySelector(`link[rel="${rel}"]`);
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = rel;
+        document.head.appendChild(link);
+      }
+      link.href = iconDataUrl;
+    };
+
+    setIcon('icon');
+    setIcon('apple-touch-icon');
+    
     // Adicionar metatags para experiência de Aplicativo nativo
     const metaTitle = document.createElement('meta');
     metaTitle.name = "apple-mobile-web-app-title";
@@ -583,7 +607,7 @@ export default function App() {
                  <Input label="E-mail" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="exemplo@autoprime.com" required />
                  <Input label="Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
                  {loginError && <p className="text-red-500 text-[9px] font-bold text-center">{loginError}</p>}
-                 <Button type="submit" className="w-full py-3">Aceder Painel</Button>
+                 <Button type="submit" className="w-full py-3">Acessar</Button>
               </form>
            </Card>
         </div>
@@ -624,7 +648,7 @@ export default function App() {
                          <st.icon size={16} className={st.color}/>
                          <div>
                             <p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">{st.label}</p>
-                            <h3 className="text-lg font-black text-white leading-none">{st.val}</h3>
+                            <h3 className="text-lg font-black text-white mt-1 leading-none">{st.val}</h3>
                          </div>
                       </div>
                     </Card>
@@ -645,12 +669,19 @@ export default function App() {
                         <span className="text-[8px] px-2 py-0.5 rounded-full font-black bg-zinc-950 text-orange-500 border border-zinc-800 uppercase">{v.work_status}</span>
                       </div>
                       <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                          <div className="flex-1 flex gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto no-scrollbar">
+                          {/* BARRA DE STATUS CORRIGIDA PARA MOBILE SCROLL */}
+                          <div className="flex-1 flex flex-nowrap gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto no-scrollbar touch-pan-x snap-x snap-mandatory">
                               {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
-                                  <button key={st} onClick={() => updateWorkStatus(v.id, st)} className={`whitespace-nowrap px-3 py-1.5 rounded-md text-[8px] font-black uppercase transition-all flex-1 ${v.work_status === st ? 'bg-orange-600 text-black italic' : 'text-zinc-600 hover:text-white'}`}>{st}</button>
+                                  <button 
+                                    key={st} 
+                                    onClick={() => updateWorkStatus(v.id, st)} 
+                                    className={`whitespace-nowrap px-4 py-2 rounded-md text-[8px] font-black uppercase transition-all flex-shrink-0 snap-start ${v.work_status === st ? 'bg-orange-600 text-black italic' : 'text-zinc-600 hover:text-white hover:bg-zinc-900'}`}
+                                  >
+                                    {st}
+                                  </button>
                               ))}
                           </div>
-                          <button onClick={() => deleteVehicle(v.id)} className="p-2.5 bg-red-600/10 text-red-500 rounded-lg hover:bg-red-600 transition-all"><Trash2 size={14}/></button>
+                          <button onClick={() => deleteVehicle(v.id)} className="p-2.5 bg-red-600/10 text-red-500 rounded-lg hover:bg-red-600 transition-all flex-shrink-0"><Trash2 size={14}/></button>
                       </div>
                     </Card>
                   ))}
