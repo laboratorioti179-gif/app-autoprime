@@ -774,7 +774,6 @@ export default function App() {
                         <span className="text-[8px] px-2 py-0.5 rounded-full font-black bg-zinc-950 text-orange-500 border border-zinc-800 uppercase">{v.work_status}</span>
                       </div>
                       <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                          {/* BARRA DE STATUS CORRIGIDA PARA MOBILE SCROLL */}
                           <div className="flex-1 min-w-0 flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
                               {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
                                   <button 
@@ -1180,10 +1179,28 @@ export default function App() {
                           </div>
                       </div>
 
+                      {/* Seção: Status Geral do Veículo */}
+                      <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-4">
+                         <p className="text-[9px] font-black text-zinc-400 uppercase flex items-center gap-2 italic tracking-widest leading-none">
+                           <Activity size={14} className="text-orange-600"/> STATUS GERAL DO VEÍCULO
+                         </p>
+                         <div className="flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+                            {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
+                               <button 
+                                 key={st} 
+                                 onClick={() => updateWorkStatus(viewingVehicle.id, st)} 
+                                 className={`whitespace-nowrap px-4 py-2 rounded-md text-[8px] font-black uppercase transition-all flex-shrink-0 ${viewingVehicle.work_status === st ? 'bg-orange-600 text-black italic' : 'text-zinc-600 hover:text-white hover:bg-zinc-900'}`}
+                               >
+                                  {st}
+                               </button>
+                            ))}
+                         </div>
+                      </div>
+
                       {/* Seção: Produção em Estufa */}
                       <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-4">
                          <p className="text-[9px] font-black text-zinc-400 uppercase flex items-center gap-2 italic tracking-widest leading-none">
-                           <Layers size={14} className="text-orange-600"/> PRODUÇÃO EM ESTUFA
+                           <Layers size={14} className="text-orange-600"/> PRODUÇÃO EM ESTUFA (ETAPAS)
                          </p>
                          <div className="grid grid-cols-5 gap-2">
                             {['Funilaria', 'Preparação', 'Pintura', 'Polimento', 'Finalizado'].map(stage => (
