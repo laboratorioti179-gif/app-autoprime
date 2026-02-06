@@ -185,21 +185,27 @@ export default function App() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  // Configuração de Identidade Visual e Atalho (App Name e Mobile Experience)
+  // Configuração de Identidade Visual, Atalho e PWA (Nome e Ícone)
   useEffect(() => {
-    document.title = "Auto Prime";
+    // 1. Definir Nome do Aplicativo (Aparece no título e ao criar atalho)
+    const appName = "Auto Prime";
+    document.title = appName;
     
-    // Ícone SVG personalizado (Fundo laranja com símbolo de pincel preto)
+    // 2. Criar Ícone SVG Personalizado (Laranja e Preto)
+    // Este SVG será convertido em DataURL para ser usado como favicon e apple-touch-icon
     const iconSvg = `
       <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="180" height="180" rx="40" fill="#EA580C"/>
-        <path d="M50 120C50 120 65 80 100 75C135 70 150 100 180 95" stroke="black" stroke-width="14" stroke-linecap="round"/>
-        <circle cx="50" cy="120" r="10" fill="black" />
+        <path d="M40 110 L60 85 L120 85 L140 110 Z" fill="black"/>
+        <rect x="45" y="105" width="90" height="25" rx="5" fill="black"/>
+        <circle cx="65" cy="130" r="12" fill="black"/>
+        <circle cx="115" cy="130" r="12" fill="black"/>
+        <path d="M30 60 Q90 20 150 60" stroke="black" stroke-width="8" fill="none" stroke-linecap="round"/>
       </svg>
     `.trim();
     const iconDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(iconSvg)}`;
 
-    // Adicionar link para ícone (Favicon e Apple Touch Icon)
+    // Função para gerir links de ícone no head
     const setIcon = (rel, href) => {
       let link = document.querySelector(`link[rel="${rel}"]`);
       if (!link) {
@@ -214,7 +220,7 @@ export default function App() {
     setIcon('apple-touch-icon', iconDataUrl);
     setIcon('shortcut icon', iconDataUrl);
     
-    // Adicionar metatags para experiência de Aplicativo nativo
+    // 3. Configurar Meta Tags para comportamento de App Nativo
     const setMeta = (name, content) => {
         let meta = document.querySelector(`meta[name="${name}"]`);
         if (!meta) {
@@ -225,11 +231,12 @@ export default function App() {
         meta.content = content;
     };
 
-    setMeta("apple-mobile-web-app-title", "Auto Prime");
+    setMeta("apple-mobile-web-app-title", appName);
     setMeta("apple-mobile-web-app-capable", "yes");
     setMeta("apple-mobile-web-app-status-bar-style", "black-translucent");
     setMeta("mobile-web-app-capable", "yes");
-    setMeta("theme-color", "#EA580C");
+    setMeta("theme-color", "#EA580C"); // Cor Laranja do Tema
+    setMeta("description", "Gestão profissional de estética e pintura automóvel.");
   }, []);
 
   useEffect(() => {
