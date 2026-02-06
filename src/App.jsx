@@ -775,12 +775,12 @@ export default function App() {
                       </div>
                       <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                           {/* BARRA DE STATUS CORRIGIDA PARA MOBILE SCROLL */}
-                          <div className="flex-1 min-w-0 flex flex-nowrap gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto touch-pan-x snap-x snap-mandatory">
+                          <div className="flex-1 min-w-0 flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
                               {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
                                   <button 
                                     key={st} 
                                     onClick={() => updateWorkStatus(v.id, st)} 
-                                    className={`whitespace-nowrap px-4 py-2 rounded-md text-[8px] font-black uppercase transition-all flex-shrink-0 snap-start ${v.work_status === st ? 'bg-orange-600 text-black italic' : 'text-zinc-600 hover:text-white hover:bg-zinc-900'}`}
+                                    className={`whitespace-nowrap px-4 py-2 rounded-md text-[8px] font-black uppercase transition-all flex-shrink-0 ${v.work_status === st ? 'bg-orange-600 text-black italic' : 'text-zinc-600 hover:text-white hover:bg-zinc-900'}`}
                                   >
                                     {st}
                                   </button>
