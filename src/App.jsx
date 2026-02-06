@@ -48,7 +48,8 @@ import {
   MinusCircle,
   ArrowDownRight,
   Search,
-  MessageCircle
+  MessageCircle,
+  FileDigit
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO SUPABASE ---
@@ -122,7 +123,7 @@ export default function App() {
   const [inventory, setInventory] = useState([]);
   const [inventoryLog, setInventoryLog] = useState([]); 
   const [dashboardFilter, setDashboardFilter] = useState('all');
-  const [loginForm, setLoginForm] = useState({ email: "", password: "", confirmPassword: "", workshopName: "" });
+  const [loginForm, setLoginForm] = useState({ email: "", password: "", confirmPassword: "", workshopName: "", cpf: "", fullName: "", address: "" });
   const [loginError, setLoginError] = useState("");
   const [authView, setAuthView] = useState('login'); // 'login' | 'signup' | 'forgot'
   const [notification, setNotification] = useState({ show: false, message: "", type: "success" });
@@ -339,7 +340,10 @@ export default function App() {
       await supabase.from('autoprime_profile').insert([{
         tenant_id: tenantId,
         workshop_name: loginForm.workshopName,
-        email: loginForm.email
+        email: loginForm.email,
+        owner_name: loginForm.fullName,
+        cnpj: loginForm.cpf,
+        address: loginForm.address
       }]);
       showNotification("Cadastro realizado com sucesso!");
       setAuthView('login');
@@ -352,9 +356,25 @@ export default function App() {
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setLoginError("");
-    // Simulando envio de e-mail conforme solicitado (configurado para enviar link)
-    showNotification("E-mail de recuperação enviado com sucesso!");
-    setAuthView('login');
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from('autoprime_admins')
+      .select('id')
+      .eq('email', loginForm.email)
+      .maybeSingle();
+
+    if (error) {
+      setLoginError("Erro ao processar solicitação.");
+      return;
+    }
+
+    if (data) {
+      showNotification("E-mail de recuperação enviado com sucesso!");
+      setAuthView('login');
+    } else {
+      setLoginError("E-mail não cadastrado no sistema.");
+    }
   };
 
   const handleLogout = () => { setIsAuthenticated(false); localStorage.clear(); window.location.href = window.location.pathname; };
@@ -669,6 +689,9 @@ export default function App() {
               {authView === 'signup' && (
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <Input label="Nome da Oficina" icon={Car} value={loginForm.workshopName} onChange={e => setLoginForm({...loginForm, workshopName: e.target.value})} placeholder="Minha Oficina Prime" required />
+                  <Input label="Nome Completo (Responsável)" icon={User} value={loginForm.fullName} onChange={e => setLoginForm({...loginForm, fullName: e.target.value})} placeholder="João da Silva" required />
+                  <Input label="CPF" icon={FileDigit} value={loginForm.cpf} onChange={e => setLoginForm({...loginForm, cpf: e.target.value})} placeholder="000.000.000-00" required />
+                  <Input label="Endereço da Oficina" icon={MapPin} value={loginForm.address} onChange={e => setLoginForm({...loginForm, address: e.target.value})} placeholder="Rua das Flores, 123" required />
                   <Input label="E-mail Administrativo" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="admin@autoprime.com" required />
                   <Input label="Nova Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
                   <Input label="Confirmar Senha" type="password" icon={Lock} value={loginForm.confirmPassword} onChange={e => setLoginForm({...loginForm, confirmPassword: e.target.value})} placeholder="••••••••" required />
@@ -1197,10 +1220,10 @@ export default function App() {
                       </div>
                    </div>
 
-                   {/* Coluna Direita: Fotos */}
-                   <div className="grid grid-cols-2 gap-4 h-fit sticky top-0">
+                   {/* Coluna Direita: Fotos - AJUSTADO PARA ROLAGEM MOBILE */}
+                   <div className="flex md:grid overflow-x-auto md:overflow-x-visible md:grid-cols-2 gap-4 h-fit md:sticky md:top-0 pb-6 md:pb-0 no-scrollbar snap-x snap-mandatory overscroll-x-contain">
                       {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map((item, idx) => (
-                        <div key={idx} className={`bg-zinc-900 rounded-[20px] overflow-hidden relative border border-zinc-800 shadow-2xl transition-all hover:border-orange-600/30 group ${idx === 4 ? 'col-span-2 aspect-[21/9]' : 'aspect-square'}`}>
+                        <div key={idx} className={`bg-zinc-900 rounded-[20px] overflow-hidden relative border border-zinc-800 shadow-2xl transition-all hover:border-orange-600/30 group flex-shrink-0 snap-center ${idx === 4 ? 'w-[85vw] md:w-full md:col-span-2 aspect-[21/9]' : 'w-[75vw] md:w-full aspect-square'}`}>
                           {viewingVehicle.photos?.[item] ? (
                             <img src={viewingVehicle.photos[item]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={item} />
                           ) : (
