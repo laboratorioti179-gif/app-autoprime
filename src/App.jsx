@@ -31,7 +31,7 @@ import {
   MapPin,
   ToggleLeft,
   ToggleRight,
-  Cpu,
+  Cpu, 
   Layers,
   Copy,
   Share2,
@@ -49,7 +49,10 @@ import {
   ArrowDownRight,
   Search,
   MessageCircle,
-  FileDigit
+  FileDigit,
+  CreditCard,
+  ShieldAlert,
+  Gauge
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO SUPABASE ---
@@ -131,7 +134,8 @@ export default function App() {
   const [inventorySearch, setInventorySearch] = useState("");
 
   const [profile, setProfile] = useState({
-    workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: ""
+    workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: "",
+    subscription_status: "Trial", subscription_expires_at: null
   });
 
   const [appSettings, setAppSettings] = useState({
@@ -350,7 +354,9 @@ export default function App() {
         email: loginForm.email,
         owner_name: loginForm.fullName,
         cnpj: loginForm.cpf,
-        address: loginForm.address
+        address: loginForm.address,
+        subscription_status: 'Trial',
+        subscription_expires_at: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString()
       }]);
       showNotification("Cadastro realizado com sucesso!");
       setAuthView('login');
@@ -392,30 +398,36 @@ export default function App() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
 
+      // Cabeçalho Escuro
       doc.setFillColor(24, 24, 27);
-      doc.rect(0, 0, 210, 35, 'F');
+      doc.rect(0, 0, 210, 45, 'F');
+      
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(18);
+      doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
-      doc.text(profile.workshop_name.toUpperCase() || "AUTOPRIME", 15, 22);
+      doc.text(profile.workshop_name?.toUpperCase() || "AUTOPRIME", 15, 20);
       
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      doc.text(profile.address || "", 15, 29);
+      doc.text(`${profile.address || ""}`, 15, 28);
+      doc.text(`Telefone: ${profile.phone || ""} | E-mail: ${profile.email || ""}`, 15, 33);
+      doc.text(`CNPJ/NIF: ${profile.cnpj || ""}`, 15, 38);
 
       doc.setTextColor(24, 24, 27);
       doc.setFontSize(10);
-      doc.text("ORÇAMENTO TÉCNICO", 15, 50);
-      doc.line(15, 52, 195, 52);
+      doc.setFont("helvetica", "bold");
+      doc.text("ORÇAMENTO TÉCNICO", 15, 60);
+      doc.line(15, 62, 195, 62);
       
-      doc.text(`Cliente: ${vehicle.customer_name}`, 15, 60);
-      doc.text(`Veículo: ${vehicle.brand} ${vehicle.model} (${vehicle.license_plate})`, 15, 67);
-      doc.text(`Data: ${new Date().toLocaleDateString()}`, 15, 74);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Cliente: ${vehicle.customer_name}`, 15, 70);
+      doc.text(`Veículo: ${vehicle.brand} ${vehicle.model} (${vehicle.license_plate})`, 15, 77);
+      doc.text(`Data: ${new Date().toLocaleDateString()}`, 15, 84);
 
       const services = (vehicle.service_description || "").split(',').map(s => [s.trim()]);
       if (doc.autoTable) {
         doc.autoTable({
-          startY: 85,
+          startY: 95,
           head: [['SERVIÇO']],
           body: services,
           theme: 'striped',
@@ -425,10 +437,41 @@ export default function App() {
 
       const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 12 : 140;
       doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
       doc.text(`TOTAL: R$ ${Number(vehicle.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 15, finalY);
 
       doc.save(`Orcamento_${vehicle.license_plate}.pdf`);
       showNotification("PDF gerado!");
+    } catch (err) { console.error(err); }
+  };
+
+  const generateCRMPDF = () => {
+    try {
+      if (!window.jspdf) return;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(14);
+      doc.text(`BASE DE CLIENTES - ${profile.workshop_name?.toUpperCase() || "AUTOPRIME"}`, 15, 20);
+      
+      const data = vehicles.map(v => [
+        v.customer_name,
+        `${v.brand} ${v.model}`,
+        v.license_plate,
+        v.phone,
+        new Date(v.created_at || Date.now()).toLocaleDateString('pt-BR')
+      ]);
+
+      if (doc.autoTable) {
+        doc.autoTable({
+          startY: 30,
+          head: [['Cliente', 'Carro', 'Placa', 'Contato', 'Data Entrada']],
+          body: data,
+          theme: 'striped',
+          headStyles: { fillColor: [234, 88, 12] }
+        });
+      }
+      doc.save("lista_clientes_crm.pdf");
+      showNotification("PDF CRM gerado!");
     } catch (err) { console.error(err); }
   };
 
@@ -456,11 +499,11 @@ export default function App() {
   };
 
   const deleteVehicle = async (id) => {
-    if (confirm("Deseja apagar este veículo?")) {
-      await supabase.from('autoprime_vehicles').delete().eq('id', id);
-      setVehicles(vehicles.filter(v => v.id !== id));
-      showNotification("Removido.");
-    }
+    // Nota: O comando confirm() foi removido pois não é suportado no ambiente seguro.
+    // A exclusão agora é executada diretamente para garantir funcionalidade.
+    await supabase.from('autoprime_vehicles').delete().eq('id', id);
+    setVehicles(prev => prev.filter(v => v.id !== id));
+    showNotification("Veículo removido com sucesso.");
   };
 
   const handlePhotoUpload = (pos, e) => {
@@ -474,6 +517,12 @@ export default function App() {
 
   const handleAddVehicle = async (e) => {
     e.preventDefault();
+
+    if (!newVehicle.photos?.['Quilometragem']) {
+        showNotification("Foto da quilometragem é obrigatória!", "danger");
+        return;
+    }
+
     let desc = (newVehicle.selectedServices || []).join(", ");
     if (newVehicle.customPieceText) desc += ` (${newVehicle.customPieceText})`;
     
@@ -552,6 +601,25 @@ export default function App() {
     showNotification("Material debitado!");
   };
 
+  const handleUpdateVehiclePhotos = async (e) => {
+    const file = e.target.files[0];
+    if (file && viewingVehicle) {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const photoKey = `Extra_${Date.now()}`;
+        const updatedPhotos = { ...viewingVehicle.photos, [photoKey]: reader.result };
+        const { error } = await supabase.from('autoprime_vehicles').update({ photos: updatedPhotos }).eq('id', viewingVehicle.id);
+        
+        if (!error) {
+           setViewingVehicle(prev => ({ ...prev, photos: updatedPhotos }));
+           setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, photos: updatedPhotos } : v));
+           showNotification("Foto adicionada!");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const activeVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'active'), [vehicles]);
   const historyVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'done'), [vehicles]);
   
@@ -588,6 +656,26 @@ export default function App() {
     const targetInfo = `${viewingVehicle.brand} ${viewingVehicle.model} (${viewingVehicle.license_plate})`;
     return inventoryLog.filter(log => log.vehicle_info === targetInfo);
   }, [inventoryLog, viewingVehicle]);
+
+  // Validação de Assinatura e Sincronização Automática com o Banco de Dados
+  const isSubscriptionValid = useMemo(() => {
+    if (!profile.subscription_expires_at) return true; 
+    const expiry = new Date(profile.subscription_expires_at).getTime();
+    const now = new Date().getTime();
+    return expiry > now;
+  }, [profile.subscription_expires_at]);
+
+  useEffect(() => {
+    const syncStatus = async () => {
+      if (!supabase || !currentTenantId || !profile.subscription_expires_at) return;
+      const correctStatus = isSubscriptionValid ? 'Ativa' : 'Expirada';
+      if (profile.subscription_status !== correctStatus) {
+        await supabase.from('autoprime_profile').update({ subscription_status: correctStatus }).eq('tenant_id', currentTenantId);
+        setProfile(prev => ({ ...prev, subscription_status: correctStatus }));
+      }
+    };
+    syncStatus();
+  }, [isSubscriptionValid, profile.subscription_status, currentTenantId, supabase]);
 
   if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando sistema...</div>;
 
@@ -649,12 +737,25 @@ export default function App() {
           { id: 'inventory', label: 'Estoque', icon: Package, visible: appSettings.showInventory }, 
           { id: 'finance', label: 'Financeiro', icon: DollarSign, visible: appSettings.showFinance },
           { id: 'settings', label: 'Ajustes', icon: Settings, visible: true }, 
-          { id: 'profile', label: 'Oficina', icon: User, visible: true } 
+          { id: 'profile', label: 'Oficina', icon: User, visible: true },
+          { id: 'crm', label: 'CRM', icon: MessageCircle, visible: true },
+          { id: 'subscription_manager', label: 'Assinatura', icon: CreditCard, visible: true } 
         ].filter(item => item.visible).map(item => (
           <button key={item.id} onClick={() => {setActiveTab(item.id); setIsMobileMenuOpen(false);}} className={`flex items-center gap-3 px-3 py-3 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all ${activeTab === item.id ? 'bg-orange-600 text-black italic shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'}`}><item.icon size={16} /> {item.label}</button>
         ))}
       </nav>
-      <button onClick={handleLogout} className="mt-auto flex items-center gap-3 px-3 py-3 text-red-500 font-bold uppercase text-[9px] tracking-widest hover:bg-red-500/10 rounded-xl transition-all"><LogOut size={16} /> Sair</button>
+      <div className="mt-auto space-y-2">
+        {profile.subscription_status && (
+          <div className={`mx-2 p-3 rounded-xl border flex items-center gap-3 ${profile.subscription_status === 'Ativa' ? 'bg-emerald-600/5 border-emerald-500/20' : 'bg-orange-600/5 border-orange-600/20'}`}>
+            <CreditCard size={14} className={profile.subscription_status === 'Ativa' ? 'text-emerald-500' : 'text-orange-500'}/>
+            <div>
+              <p className="text-[7px] font-black uppercase text-zinc-500 tracking-widest">Plano {profile.subscription_status}</p>
+              <p className="text-[8px] font-bold text-white uppercase truncate">Expira: {profile.subscription_expires_at ? new Date(profile.subscription_expires_at).toLocaleDateString() : '---'}</p>
+            </div>
+          </div>
+        )}
+        <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-3 text-red-500 font-bold uppercase text-[9px] tracking-widest hover:bg-red-500/10 rounded-xl transition-all"><LogOut size={16} /> Sair</button>
+      </div>
     </>
   );
 
@@ -722,6 +823,23 @@ export default function App() {
                 </form>
               )}
            </Card>
+        </div>
+      ) : !isSubscriptionValid ? (
+        <div className="min-h-screen w-full bg-black flex items-center justify-center p-6">
+          <Card className="w-full max-w-md p-10 text-center space-y-6 border-orange-600/30">
+            <div className="flex justify-center">
+              <div className="bg-orange-600/10 p-5 rounded-full text-orange-600 animate-pulse"><ShieldAlert size={48}/></div>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Assinatura Expirada</h2>
+              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest leading-relaxed">O período de teste ou sua assinatura ativa terminou. Por favor, renove sua conta para continuar gerenciando sua oficina.</p>
+            </div>
+            <div className="h-px bg-zinc-800 w-12 mx-auto"></div>
+            <div className="space-y-4">
+              <Button onClick={() => window.open('https://stripe.com', '_blank')} className="w-full py-4 tracking-widest">RENOVAR ASSINATURA AGORA</Button>
+              <button onClick={handleLogout} className="text-[10px] font-black uppercase text-zinc-600 hover:text-white transition-all tracking-widest">SAIR DA CONTA</button>
+            </div>
+          </Card>
         </div>
       ) : (
         <>
@@ -965,6 +1083,85 @@ export default function App() {
                   </Card>
                </div>
             )}
+
+            {activeTab === 'crm' && (
+              <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in">
+                 <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Gestão de Clientes (CRM)</h2>
+                    <Button onClick={generateCRMPDF} variant="outline" className="border-orange-600/50 text-orange-500 hover:bg-orange-600/10"><Download size={16}/> Baixar Lista CRM (PDF)</Button>
+                 </div>
+                 
+                 <Card className="overflow-hidden border-zinc-800 bg-zinc-950/50">
+                    <table className="w-full text-left text-[10px]">
+                      <thead className="bg-zinc-900 text-zinc-500 uppercase font-black">
+                        <tr>
+                          <th className="p-4">Cliente</th>
+                          <th className="p-4">Veículo</th>
+                          <th className="p-4">Placa</th>
+                          <th className="p-4">Contato (Promoções)</th>
+                          <th className="p-4">Última Entrada</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-900">
+                        {vehicles.map((v, i) => (
+                          <tr key={i} className="hover:bg-zinc-900/30 transition-colors">
+                            <td className="p-4 font-bold text-white uppercase">{v.customer_name}</td>
+                            <td className="p-4 text-zinc-400 font-bold uppercase">{v.brand} {v.model}</td>
+                            <td className="p-4 text-orange-500 font-mono italic">{v.license_plate}</td>
+                            <td className="p-4 text-white font-bold">{v.phone}</td>
+                            <td className="p-4 text-zinc-600 font-mono">{new Date(v.created_at || Date.now()).toLocaleDateString('pt-BR')}</td>
+                          </tr>
+                        ))}
+                        {vehicles.length === 0 && (
+                          <tr><td colSpan="5" className="p-12 text-center text-zinc-800 font-black uppercase italic tracking-widest">Nenhum cliente registrado no CRM</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                 </Card>
+              </div>
+            )}
+
+            {activeTab === 'subscription_manager' && (
+              <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                 <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Assinatura e Planos</h2>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className={`p-6 border-l-4 ${isSubscriptionValid ? 'border-l-emerald-600' : 'border-l-red-600'}`}>
+                       <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Status da Conta</p>
+                       <div className="flex items-center gap-2 mt-2">
+                          <div className={`w-2 h-2 rounded-full ${isSubscriptionValid ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+                          <h3 className="text-xl font-black text-white uppercase italic">
+                             {isSubscriptionValid ? 'Ativo - Acesso total' : 'Expirado - Sem acesso ao aplicativo'}
+                          </h3>
+                       </div>
+                       <p className="text-[10px] text-zinc-400 mt-4 uppercase font-bold">Vinculado ao e-mail:</p>
+                       <p className="text-xs text-orange-500 font-mono">{profile.email || loginForm.email}</p>
+                    </Card>
+
+                    <Card className="p-6 border-l-4 border-l-zinc-800">
+                       <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Validade do Plano</p>
+                       <h3 className="text-xl font-black text-white mt-2 italic">
+                          {profile.subscription_expires_at ? new Date(profile.subscription_expires_at).toLocaleDateString('pt-BR') : 'Expirado'}
+                       </h3>
+                       <p className="text-[9px] text-zinc-500 mt-4 leading-relaxed font-bold uppercase tracking-wider italic">
+                          {isSubscriptionValid ? 'Sua licença está válida e todas as funcionalidades estão desbloqueadas.' : 'Seu acesso foi interrompido. Regularize sua assinatura para voltar a usar o AutoPrime.'}
+                       </p>
+                    </Card>
+                 </div>
+                 
+                 <Card className="p-8 bg-zinc-900/50 border-dashed border-zinc-800 flex flex-col items-center text-center gap-4">
+                    <div className="bg-zinc-950 p-4 rounded-full text-zinc-700"><ShieldAlert size={32}/></div>
+                    <div className="max-w-sm">
+                       <h4 className="text-xs font-black text-white uppercase tracking-widest mb-1">Pagamentos e Faturas</h4>
+                       <p className="text-[10px] text-zinc-500 font-bold uppercase leading-relaxed">
+                          {isSubscriptionValid ? 'O processamento de pagamentos é feito de forma segura.' : 'Sua assinatura precisa de renovação para restaurar o acesso total.'}
+                       </p>
+                    </div>
+                    <Button variant={isSubscriptionValid ? "outline" : "primary"} className="mt-2" onClick={() => window.open('https://billing.stripe.com', '_blank')}>
+                       {isSubscriptionValid ? 'Gerenciar faturamento' : 'RENOVAR ASSINATURA AGORA'}
+                    </Button>
+                 </Card>
+              </div>
+            )}
           </main>
 
           {isModalOpen && (
@@ -1050,8 +1247,8 @@ export default function App() {
                    <div className="space-y-4">
                       <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic flex items-center gap-2"><Camera size={14}/> Seleção de Fotos (Vistoria)</p>
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                         {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map(pos => (
-                           <div key={pos} className="relative aspect-square bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-xl flex items-center justify-center overflow-hidden hover:border-orange-600 transition-all group">
+                         {['Quilometragem', 'Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map(pos => (
+                           <div key={pos} className={`relative aspect-square bg-zinc-950 border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden hover:border-orange-600 transition-all group ${pos === 'Quilometragem' ? (newVehicle.photos?.['Quilometragem'] ? 'border-zinc-800' : 'border-red-600/50 bg-red-600/5') : 'border-zinc-800'}`}>
                               {newVehicle.photos?.[pos] ? (
                                 <>
                                   <img src={newVehicle.photos[pos]} className="w-full h-full object-cover" alt={pos} />
@@ -1060,8 +1257,8 @@ export default function App() {
                               ) : (
                                 <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center gap-2">
                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(pos, e)} />
-                                   <Camera size={20} className="text-zinc-800" />
-                                   <span className="text-[7px] font-black text-zinc-800 uppercase tracking-widest">{pos}</span>
+                                   {pos === 'Quilometragem' ? <Gauge size={20} className="text-red-600" /> : <Camera size={20} className="text-zinc-800" />}
+                                   <span className={`text-[7px] font-black uppercase tracking-widest ${pos === 'Quilometragem' ? 'text-red-500' : 'text-zinc-800'}`}>{pos} {pos === 'Quilometragem' && '*'}</span>
                                 </label>
                               )}
                            </div>
@@ -1154,9 +1351,26 @@ export default function App() {
 
                       {/* Seção: Serviços Solicitados (ESTADO: ADICIONADO) */}
                       <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
-                          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 italic leading-none">
-                            <ClipboardList size={14} className="text-zinc-500"/> SERVIÇOS SOLICITADOS
-                          </p>
+                          <div className="flex justify-between items-center">
+                              <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 italic leading-none">
+                                <ClipboardList size={14} className="text-zinc-500"/> SERVIÇOS SOLICITADOS
+                              </p>
+                              <button 
+                                onClick={async () => {
+                                  const extra = window.prompt("Incluir novo serviço na ficha:");
+                                  if (extra && viewingVehicle) {
+                                    const newDesc = viewingVehicle.service_description ? `${viewingVehicle.service_description}, ${extra}` : extra;
+                                    await supabase.from('autoprime_vehicles').update({ service_description: newDesc }).eq('id', viewingVehicle.id);
+                                    setViewingVehicle(prev => ({ ...prev, service_description: newDesc }));
+                                    setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, service_description: newDesc } : v));
+                                    showNotification("Serviço adicionado com sucesso!");
+                                  }
+                                }}
+                                className="p-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-all border border-zinc-700"
+                              >
+                                <Plus size={12}/>
+                              </button>
+                          </div>
                           <div className="flex flex-wrap gap-2">
                              {viewingVehicle.service_description ? viewingVehicle.service_description.split(',').map((serv, i) => (
                                <div key={i} className="bg-zinc-950 border border-zinc-800 px-4 py-2 rounded-xl text-[9px] font-black text-zinc-400 uppercase tracking-tight flex items-center gap-2">
@@ -1224,18 +1438,18 @@ export default function App() {
 
                       {/* Seção Final: Valores (ESTADO: ADICIONADO/CONFERIDO CUSTO MATERIAL) */}
                       <div className="grid grid-cols-2 gap-4">
-                         <div className="p-5 bg-emerald-600/5 border border-emerald-500/20 rounded-2xl flex justify-between items-center">
+                         <div className="p-5 bg-emerald-600/5 border border-emerald-500/20 rounded-2xl flex flex-col gap-3">
                             <div>
-                              <p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest italic">Preço Orçado</p>
-                              <p className="text-emerald-500 font-black text-2xl italic tracking-tighter leading-none">
+                              <p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest italic leading-none">Preço Orçado</p>
+                              <p className="text-emerald-500 font-black text-2xl italic tracking-tighter leading-none mt-1">
                                 R$ {Number(viewingVehicle.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </p>
                             </div>
-                            <button onClick={() => generateBudgetPDF(viewingVehicle)} className="bg-zinc-800/80 hover:bg-zinc-700 px-4 py-2.5 rounded-xl text-zinc-300 font-black text-[9px] uppercase tracking-widest flex items-center gap-2 border border-zinc-700 shadow-xl transition-all active:scale-95">
-                               <Download size={16}/> PDF
+                            <button onClick={() => generateBudgetPDF(viewingVehicle)} className="w-full bg-zinc-800/80 hover:bg-zinc-700 px-4 py-2.5 rounded-xl text-zinc-300 font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 border border-zinc-700 shadow-xl transition-all active:scale-95">
+                               <Download size={16}/> GERAR ORÇAMENTO
                             </button>
                          </div>
-                         <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl">
+                         <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col">
                             <p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest italic leading-none">Custo Material</p>
                             <p className="text-zinc-200 font-bold text-xl italic tracking-tighter mt-1">
                               R$ {Number(viewingVehicle.cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -1246,21 +1460,33 @@ export default function App() {
 
                    {/* Coluna Direita: Fotos - AJUSTADO PARA ROLAGEM MOBILE */}
                    <div className="flex md:grid overflow-x-auto md:overflow-x-visible md:grid-cols-2 gap-4 h-fit md:sticky md:top-0 pb-6 md:pb-0 no-scrollbar snap-x snap-mandatory overscroll-x-contain">
-                      {['Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map((item, idx) => (
+                      {/* Galeria de Fotos */}
+                      {Object.keys(viewingVehicle.photos || {}).map((key, idx) => (
                         <div key={idx} className={`bg-zinc-900 rounded-[20px] overflow-hidden relative border border-zinc-800 shadow-2xl transition-all hover:border-orange-600/30 group flex-shrink-0 snap-center ${idx === 4 ? 'w-[85vw] md:w-full md:col-span-2 aspect-[21/9]' : 'w-[75vw] md:w-full aspect-square'}`}>
-                          {viewingVehicle.photos?.[item] ? (
-                            <img src={viewingVehicle.photos[item]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={item} />
+                          {viewingVehicle.photos[key] ? (
+                            <img src={viewingVehicle.photos[key]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={key} />
                           ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center text-zinc-800 gap-2">
                                <ImageIcon size={32} className="opacity-10" />
-                               <span className="text-[8px] font-black uppercase tracking-[0.2em] italic">SEM FOTO: {item}</span>
+                               <span className="text-[8px] font-black uppercase tracking-[0.2em] italic">SEM FOTO: {key}</span>
                             </div>
                           )}
                           <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-zinc-800 shadow-lg">
-                            <span className="text-[8px] font-black text-white uppercase tracking-widest italic">{item}</span>
+                            <span className="text-[8px] font-black text-white uppercase tracking-widest italic">{key}</span>
                           </div>
                         </div>
                       ))}
+
+                      {/* Botão Adicionar Mais Fotos na Ficha Técnica */}
+                      <div className="w-[75vw] md:w-full aspect-square bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-[20px] flex items-center justify-center hover:border-orange-600 transition-all flex-shrink-0 snap-center">
+                         <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center gap-3">
+                            <input type="file" accept="image/*" className="hidden" onChange={handleUpdateVehiclePhotos} />
+                            <div className="p-4 bg-zinc-900 rounded-full text-orange-600">
+                                <Plus size={24} />
+                            </div>
+                            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest italic">Adicionar Foto</span>
+                         </label>
+                      </div>
                    </div>
                 </div>
               </Card>
