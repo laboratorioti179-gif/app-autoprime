@@ -33,26 +33,27 @@ import {
   ToggleRight,
   Cpu, 
   Layers,
-  Copy,
-  Share2,
-  Download,
-  AlertTriangle,
-  TrendingUp,
-  Zap,
-  Droplets,
-  Globe,
-  FileText,
-  Calendar,
-  Activity,
-  BoxSelect,
-  MinusCircle,
-  ArrowDownRight,
-  Search,
-  MessageCircle,
-  FileDigit,
-  CreditCard,
-  ShieldAlert,
-  Gauge
+  Copy, 
+  Share2, 
+  Download, 
+  AlertTriangle, 
+  TrendingUp, 
+  Zap, 
+  Droplets, 
+  Globe, 
+  FileText, 
+  Calendar, 
+  Activity, 
+  BoxSelect, 
+  MinusCircle, 
+  ArrowDownRight, 
+  Search, 
+  MessageCircle, 
+  FileDigit, 
+  CreditCard, 
+  ShieldAlert, 
+  Gauge,
+  Instagram
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO SUPABASE ---
@@ -123,6 +124,7 @@ export default function App() {
   const [isPublicView, setIsPublicView] = useState(false);
 
   const [vehicles, setVehicles] = useState([]);
+  const [crmData, setCrmData] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [inventoryLog, setInventoryLog] = useState([]); 
   const [dashboardFilter, setDashboardFilter] = useState('all');
@@ -134,8 +136,8 @@ export default function App() {
   const [inventorySearch, setInventorySearch] = useState("");
 
   const [profile, setProfile] = useState({
-    workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: "",
-    subscription_status: "Trial", subscription_expires_at: null
+    workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: "", instagram: "",
+    subscription_status: "Ativo", subscription_expires_at: null
   });
 
   const [appSettings, setAppSettings] = useState({
@@ -145,9 +147,8 @@ export default function App() {
   });
 
   const [serviceOptions, setServiceOptions] = useState([
-    "Pintura completa", "Capô", "Porta dianteira", "Porta traseira", "Teto", 
-    "Traseira", "Para-choque (Traseiro)", "Para-choque (Dianteiro)", 
-    "Polimento veículo", "Polimento (Peça)", "Polimento (Farol)", "Pintura Peça"
+    "Pintura completa", "Capô", "Porta Esquerda", "Porta Direita", "Teto", 
+    "Traseira", "Para-choque (Traseiro)", "Para-choque (Dianteiro)"
   ]);
 
   const [fixedCosts, setFixedCosts] = useState({
@@ -158,9 +159,9 @@ export default function App() {
   const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
   
   const [newVehicle, setNewVehicle] = useState({
-    customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Normal", 
+    customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Sedan", 
     color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação",
-    selectedServices: [], customPieceText: "", photos: {} 
+    selectedServices: [], customPieceText: "", customServicesList: [], photos: {} 
   });
 
   const [newItem, setNewItem] = useState({ name: "", brand: "", quantity: "", price: "" });
@@ -294,13 +295,20 @@ export default function App() {
   const fetchData = async () => {
     if (!supabase || !currentTenantId) return;
     try {
+      // Limpeza automática de veículos concluídos com mais de 30 dias
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      await supabase.from('autoprime_vehicles').delete().eq('status', 'done').lt('created_at', oneMonthAgo.toISOString());
+
       const { data: vData } = await supabase.from('autoprime_vehicles').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false });
+      const { data: cData } = await supabase.from('autoprime_crm').select('*').eq('tenant_id', currentTenantId).order('last_entry', { ascending: false });
       const { data: iData } = await supabase.from('autoprime_inventory').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false });
       const { data: logData } = await supabase.from('autoprime_inventory_log').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false });
       const { data: fData } = await supabase.from('autoprime_fixed_costs').select('*').eq('tenant_id', currentTenantId).maybeSingle(); 
       const { data: pData } = await supabase.from('autoprime_profile').select('*').eq('tenant_id', currentTenantId).maybeSingle();
       
       setVehicles(vData || []);
+      setCrmData(cData || []);
       setInventory(iData || []);
       setInventoryLog(logData || []);
       if (fData) setFixedCosts(fData);
@@ -355,7 +363,7 @@ export default function App() {
         owner_name: loginForm.fullName,
         cnpj: loginForm.cpf,
         address: loginForm.address,
-        subscription_status: 'Trial',
+        subscription_status: 'Ativo',
         subscription_expires_at: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString()
       }]);
       showNotification("Cadastro realizado com sucesso!");
@@ -397,52 +405,105 @@ export default function App() {
       if (!window.jspdf) return;
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
+      
+      const orange = [234, 88, 12];
+      const dark = [24, 24, 27];
+      const gray = [113, 113, 122];
 
-      // Cabeçalho Escuro
-      doc.setFillColor(24, 24, 27);
-      doc.rect(0, 0, 210, 45, 'F');
+      // 1. Cabeçalho Principal (Dados da Oficina)
+      doc.setFillColor(...dark);
+      doc.rect(0, 0, 210, 50, 'F');
       
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(20);
+      doc.setFontSize(24);
       doc.setFont("helvetica", "bold");
       doc.text(profile.workshop_name?.toUpperCase() || "AUTOPRIME", 15, 20);
       
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      doc.text(`${profile.address || ""}`, 15, 28);
-      doc.text(`Telefone: ${profile.phone || ""} | E-mail: ${profile.email || ""}`, 15, 33);
-      doc.text(`CNPJ/NIF: ${profile.cnpj || ""}`, 15, 38);
+      doc.text(`NIF / CNPJ: ${profile.cnpj || '---'} | TEL: ${profile.phone || '---'}`, 15, 28);
+      doc.text(`ENDEREÇO: ${profile.address || '---'}`, 15, 33);
+      doc.text(`EMAIL: ${profile.email || '---'}`, 15, 38);
+      doc.text(`INSTAGRAM: ${profile.instagram || '---'}`, 15, 43);
 
-      doc.setTextColor(24, 24, 27);
+      // Título do Documento
+      doc.setTextColor(...orange);
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
-      doc.text("ORÇAMENTO TÉCNICO", 15, 60);
-      doc.line(15, 62, 195, 62);
-      
-      doc.setFont("helvetica", "normal");
-      doc.text(`Cliente: ${vehicle.customer_name}`, 15, 70);
-      doc.text(`Veículo: ${vehicle.brand} ${vehicle.model} (${vehicle.license_plate})`, 15, 77);
-      doc.text(`Data: ${new Date().toLocaleDateString()}`, 15, 84);
+      doc.text("ORÇAMENTO TÉCNICO DE SERVIÇOS", 155, 18, { align: "right" });
+      doc.setTextColor(255, 255, 255);
+      doc.text(`DATA: ${new Date().toLocaleDateString('pt-BR')}`, 155, 24, { align: "right" });
 
+      // 2. Dados do Cliente
+      doc.setTextColor(...dark);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("DADOS DO CLIENTE", 15, 60);
+      doc.setDrawColor(...orange);
+      doc.line(15, 62, 195, 62);
+
+      doc.setFont("helvetica", "normal");
+      doc.text(`NOME: ${vehicle.customer_name}`, 15, 70);
+      doc.text(`CONTATO: ${vehicle.phone}`, 120, 70);
+
+      // 3. Dados do Veículo
+      doc.setFont("helvetica", "bold");
+      doc.text("DADOS DO VEÍCULO", 15, 80);
+      doc.line(15, 82, 195, 82);
+
+      doc.setFont("helvetica", "normal");
+      doc.text(`MARCA / MODELO: ${vehicle.brand} ${vehicle.model}`, 15, 90);
+      doc.text(`PLACA: ${vehicle.license_plate}`, 120, 90);
+      doc.text(`COR: ${vehicle.color || '---'}`, 15, 96);
+      doc.text(`LOCAL (BOX): ${vehicle.location || '---'}`, 120, 96);
+
+      // 4. Seção de Serviços (Tabela)
       const services = (vehicle.service_description || "").split(',').map(s => [s.trim()]);
       if (doc.autoTable) {
         doc.autoTable({
-          startY: 95,
-          head: [['SERVIÇO']],
+          startY: 105,
+          head: [['DESCRIÇÃO TÉCNICA DO SERVIÇO']],
           body: services,
-          theme: 'striped',
-          headStyles: { fillColor: [234, 88, 12] }
+          theme: 'grid',
+          headStyles: { fillColor: orange, textColor: [255, 255, 255], fontSize: 9 },
+          styles: { fontSize: 8, cellPadding: 3 },
+          margin: { left: 15, right: 15 }
         });
       }
 
-      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 12 : 140;
-      doc.setFontSize(12);
+      // 5. Valor Final
+      const finalY = doc.lastAutoTable.finalY + 15;
+      doc.setFillColor(...dark);
+      doc.rect(15, finalY - 8, 180, 12, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
-      doc.text(`TOTAL: R$ ${Number(vehicle.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 15, finalY);
+      doc.text(`VALOR TOTAL DO ORÇAMENTO: R$ ${Number(vehicle.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 105, finalY, { align: "center" });
+
+      // 6. Assinaturas (Fim da página)
+      const pageHeight = doc.internal.pageSize.height;
+      const sigY = pageHeight - 40;
+      
+      doc.setTextColor(...dark);
+      doc.setFontSize(8);
+      doc.setDrawColor(...gray);
+      
+      // Linha Cliente
+      doc.line(20, sigY, 90, sigY);
+      doc.text("ASSINATURA DO CLIENTE", 55, sigY + 5, { align: "center" });
+
+      // Linha Oficina
+      doc.line(120, sigY, 190, sigY);
+      doc.text(`RESPONSÁVEL: ${profile.workshop_name?.toUpperCase() || 'AUTOPRIME'}`, 155, sigY + 5, { align: "center" });
+
+      // Rodapé
+      doc.setFontSize(7);
+      doc.setTextColor(...gray);
+      doc.text("Este documento é um orçamento e não possui valor fiscal. Validade: 10 dias.", 105, pageHeight - 15, { align: "center" });
 
       doc.save(`Orcamento_${vehicle.license_plate}.pdf`);
       showNotification("PDF gerado!");
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Erro ao gerar PDF:", err); }
   };
 
   const generateCRMPDF = () => {
@@ -453,18 +514,18 @@ export default function App() {
       doc.setFontSize(14);
       doc.text(`BASE DE CLIENTES - ${profile.workshop_name?.toUpperCase() || "AUTOPRIME"}`, 15, 20);
       
-      const data = vehicles.map(v => [
-        v.customer_name,
-        `${v.brand} ${v.model}`,
-        v.license_plate,
-        v.phone,
-        new Date(v.created_at || Date.now()).toLocaleDateString('pt-BR')
+      const data = crmData.map(c => [
+        c.customer_name,
+        `${c.last_brand} ${c.last_model}`,
+        c.last_license_plate,
+        c.phone,
+        new Date(c.last_entry || Date.now()).toLocaleDateString('pt-BR')
       ]);
 
       if (doc.autoTable) {
         doc.autoTable({
           startY: 30,
-          head: [['Cliente', 'Carro', 'Placa', 'Contato', 'Data Entrada']],
+          head: [['Cliente', 'Último Carro', 'Placa', 'Contato', 'Última Entrada']],
           body: data,
           theme: 'striped',
           headStyles: { fillColor: [234, 88, 12] }
@@ -476,31 +537,55 @@ export default function App() {
   };
 
   const updateWorkStatus = async (id, newStatus) => {
-    const isDone = newStatus === 'Concluído';
-    const polDate = isDone ? new Date(new Date().setDate(new Date().getDate() + 30)).toISOString() : null;
-    const upd = { 
-      work_status: newStatus, 
-      status: isDone ? 'done' : 'active', 
-      polishing_date: polDate,
-      current_stage: newStatus === 'In Work' ? 'Funilaria' : null
-    };
-    setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd } : v));
-    if (viewingVehicle && viewingVehicle.id === id) setViewingVehicle(prev => ({ ...prev, ...upd }));
-    await supabase.from('autoprime_vehicles').update(upd).eq('id', id);
-    showNotification("Status atualizado!");
+    if (!supabase) return;
+    try {
+      const isDone = newStatus === 'Concluído';
+      const polDate = isDone ? new Date(new Date().setDate(new Date().getDate() + 30)).toISOString() : null;
+      const currentV = vehicles.find(v => v.id === id);
+      
+      let scheduledDate = currentV?.scheduled_date || null;
+      if (newStatus === 'Agendados') {
+        const p = window.prompt("Defina a data para este agendamento (Ex: 15/02):", scheduledDate || "");
+        if (p !== null) scheduledDate = p;
+      }
+
+      const upd = { 
+        work_status: newStatus, 
+        status: isDone ? 'done' : 'active', 
+        polishing_date: polDate,
+        scheduled_date: scheduledDate, 
+        current_stage: newStatus === 'Em Produção' ? (currentV?.current_stage || 'Funilaria') : (newStatus === 'Agendados' ? null : currentV?.current_stage)
+      };
+
+      const { error } = await supabase.from('autoprime_vehicles').update(upd).eq('id', id);
+      if (error) throw error;
+
+      setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd, scheduled_date: scheduledDate } : v));
+      if (viewingVehicle && viewingVehicle.id === id) setViewingVehicle(prev => ({ ...prev, ...upd, scheduled_date: scheduledDate }));
+      showNotification("Status atualizado!");
+    } catch (e) {
+      console.error("Erro ao atualizar status:", e);
+      showNotification("Erro na conexão com o servidor.", "danger");
+    }
   };
 
   const updateVehicleStage = async (id, stage) => {
-    const upd = { current_stage: stage };
-    setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd } : v));
-    if (viewingVehicle && viewingVehicle.id === id) setViewingVehicle(prev => ({ ...prev, ...upd }));
-    await supabase.from('autoprime_vehicles').update(upd).eq('id', id);
-    showNotification(`Etapa: ${stage}`);
+    if (!supabase) return;
+    try {
+      const upd = { current_stage: stage };
+      const { error } = await supabase.from('autoprime_vehicles').update(upd).eq('id', id);
+      if (error) throw error;
+
+      setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd } : v));
+      if (viewingVehicle && viewingVehicle.id === id) setViewingVehicle(prev => ({ ...prev, ...upd }));
+      showNotification(`Etapa: ${stage}`);
+    } catch (e) {
+      console.error("Erro ao atualizar etapa:", e);
+      showNotification("Erro na conexão com o servidor.", "danger");
+    }
   };
 
   const deleteVehicle = async (id) => {
-    // Nota: O comando confirm() foi removido pois não é suportado no ambiente seguro.
-    // A exclusão agora é executada diretamente para garantir funcionalidade.
     await supabase.from('autoprime_vehicles').delete().eq('id', id);
     setVehicles(prev => prev.filter(v => v.id !== id));
     showNotification("Veículo removido com sucesso.");
@@ -523,25 +608,55 @@ export default function App() {
         return;
     }
 
-    let desc = (newVehicle.selectedServices || []).join(", ");
-    if (newVehicle.customPieceText) desc += ` (${newVehicle.customPieceText})`;
+    let desc = [...(newVehicle.selectedServices || []), ...(newVehicle.customServicesList || [])].join(", ");
     
     const payload = {
-      customer_name: newVehicle.customerName, phone: newVehicle.phone, brand: newVehicle.brand, model: newVehicle.model,
-      license_plate: newVehicle.licensePlate, color: newVehicle.color, entry_time: new Date().toLocaleString('pt-BR'),
-      service_description: desc, status: newVehicle.workStatus === 'Concluído' ? 'done' : 'active',
-      work_status: newVehicle.workStatus, price: Number(String(newVehicle.price).replace(',', '.')),
-      cost: Number(String(newVehicle.cost).replace(',', '.')), tenant_id: currentTenantId,
-      photos: newVehicle.photos, location: newVehicle.location, professional: newVehicle.professional,
-      vehicle_type: newVehicle.type || 'Normal', current_stage: newVehicle.workStatus === 'In Work' ? 'Funilaria' : null
+      customer_name: newVehicle.customerName, 
+      phone: newVehicle.phone, 
+      brand: newVehicle.brand, 
+      model: newVehicle.model,
+      license_plate: newVehicle.licensePlate, // Corrigido de license_plate para licensePlate
+      color: newVehicle.color, 
+      entry_time: new Date().toLocaleString('pt-BR'),
+      service_description: desc, 
+      status: newVehicle.workStatus === 'Concluído' ? 'done' : 'active',
+      work_status: newVehicle.workStatus, 
+      price: Number(String(newVehicle.price || 0).replace(',', '.')),
+      cost: Number(String(newVehicle.cost || 0).replace(',', '.')), 
+      tenant_id: currentTenantId,
+      photos: newVehicle.photos, 
+      location: newVehicle.location, 
+      professional: newVehicle.professional,
+      vehicle_type: newVehicle.type || 'Sedan', 
+      current_stage: newVehicle.workStatus === 'Em Produção' ? 'Funilaria' : null
     };
     
-    const { data } = await supabase.from('autoprime_vehicles').insert([payload]).select();
-    if (data) {
+    // Inserir Veículo com tratamento de erro
+    const { data, error: insertError } = await supabase.from('autoprime_vehicles').insert([payload]).select();
+
+    if (insertError) {
+      console.error("Erro Supabase:", insertError);
+      showNotification("Erro ao registrar veículo no banco de dados.", "danger");
+      return;
+    }
+    
+    // Sincronizar com CRM
+    await supabase.from('autoprime_crm').upsert({
+      tenant_id: currentTenantId,
+      customer_name: newVehicle.customerName,
+      phone: newVehicle.phone,
+      last_brand: newVehicle.brand,
+      last_model: newVehicle.model,
+      last_license_plate: newVehicle.licensePlate,
+      last_entry: new Date().toISOString()
+    }, { onConflict: 'tenant_id, phone' });
+
+    if (data && data.length > 0) {
       setVehicles([data[0], ...vehicles]);
       setIsModalOpen(false);
-      setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Normal", color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação", selectedServices: [], customPieceText: "", photos: {} });
+      setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Sedan", color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação", selectedServices: [], customPieceText: "", customServicesList: [], photos: {} });
       showNotification("Cadastrado!");
+      fetchData(); 
     }
   };
 
@@ -620,28 +735,39 @@ export default function App() {
     }
   };
 
+  const clearCRM = async () => {
+    if (!supabase || !currentTenantId) return;
+    const { error } = await supabase.from('autoprime_crm').delete().eq('tenant_id', currentTenantId);
+    if (!error) {
+      setCrmData([]);
+      showNotification("CRM limpo com sucesso!");
+    } else {
+      showNotification("Erro ao limpar CRM", "danger");
+    }
+  };
+
   const activeVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'active'), [vehicles]);
   const historyVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'done'), [vehicles]);
   
+  const totalInventoryValue = useMemo(() => {
+    return (inventory || []).reduce((acc, item) => acc + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
+  }, [inventory]);
+
   const financeMemo = useMemo(() => {
     const rev = vehicles.reduce((acc, v) => acc + (Number(v.price) || 0), 0);
-    const exp = Object.values(fixedCosts).reduce((acc, val) => acc + (Number(val) || 0), 0);
+    const exp = Object.values({ ...fixedCosts, material: totalInventoryValue }).reduce((acc, val) => acc + (Number(val) || 0), 0);
     return { rev, exp, profit: rev - exp };
-  }, [vehicles, fixedCosts]);
+  }, [vehicles, fixedCosts, totalInventoryValue]);
 
   const filteredVehicles = useMemo(() => {
     if (dashboardFilter === 'budgets') return activeVehiclesMemo.filter(v => v.work_status === 'Aguardando Aprovação');
-    if (dashboardFilter === 'registered') return activeVehiclesMemo.filter(v => v.work_status === 'Cadastrado');
-    if (dashboardFilter === 'in_work') return activeVehiclesMemo.filter(v => v.work_status === 'In Work');
+    if (dashboardFilter === 'registered') return activeVehiclesMemo.filter(v => v.work_status === 'Agendados');
+    if (dashboardFilter === 'in_work') return activeVehiclesMemo.filter(v => v.work_status === 'Em Produção');
     if (dashboardFilter === 'done') return historyVehiclesMemo;
     return activeVehiclesMemo;
   }, [dashboardFilter, activeVehiclesMemo, historyVehiclesMemo]);
 
   const polishingListMemo = useMemo(() => vehicles.filter(v => v.polishing_date).sort((a, b) => new Date(a.polishing_date) - new Date(b.polishing_date)), [vehicles]);
-
-  const totalInventoryValue = useMemo(() => {
-    return (inventory || []).reduce((acc, item) => acc + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
-  }, [inventory]);
 
   const filteredInventory = useMemo(() => {
     const search = (inventorySearch || "").toLowerCase();
@@ -661,14 +787,14 @@ export default function App() {
   const isSubscriptionValid = useMemo(() => {
     if (!profile.subscription_expires_at) return true; 
     const expiry = new Date(profile.subscription_expires_at).getTime();
-    const now = new Date().getTime();
+    const now = Date.now();
     return expiry > now;
   }, [profile.subscription_expires_at]);
 
   useEffect(() => {
     const syncStatus = async () => {
       if (!supabase || !currentTenantId || !profile.subscription_expires_at) return;
-      const correctStatus = isSubscriptionValid ? 'Ativa' : 'Expirada';
+      const correctStatus = isSubscriptionValid ? 'Ativo' : 'Desativado';
       if (profile.subscription_status !== correctStatus) {
         await supabase.from('autoprime_profile').update({ subscription_status: correctStatus }).eq('tenant_id', currentTenantId);
         setProfile(prev => ({ ...prev, subscription_status: correctStatus }));
@@ -700,10 +826,10 @@ export default function App() {
                  <div className="py-6 px-4 bg-black/40 rounded-2xl border border-zinc-800/50">
                     <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Status Atual</p>
                     <p className="text-orange-500 text-lg font-black uppercase italic tracking-tighter">
-                      {publicVehicle.work_status === 'In Work' ? `Em Produção: ${publicVehicle.current_stage}` : publicVehicle.work_status}
+                      {publicVehicle.work_status === 'Em Produção' ? `Em Produção: ${publicVehicle.current_stage}` : publicVehicle.work_status}
                     </p>
                  </div>
-                 {publicVehicle.work_status === 'In Work' && (
+                 {publicVehicle.work_status === 'Em Produção' && (
                     <div className="flex justify-between items-center px-2">
                        {stages.map((st, i) => (
                          <div key={st} className="flex flex-col items-center gap-2">
@@ -746,8 +872,8 @@ export default function App() {
       </nav>
       <div className="mt-auto space-y-2">
         {profile.subscription_status && (
-          <div className={`mx-2 p-3 rounded-xl border flex items-center gap-3 ${profile.subscription_status === 'Ativa' ? 'bg-emerald-600/5 border-emerald-500/20' : 'bg-orange-600/5 border-orange-600/20'}`}>
-            <CreditCard size={14} className={profile.subscription_status === 'Ativa' ? 'text-emerald-500' : 'text-orange-500'}/>
+          <div className={`mx-2 p-3 rounded-xl border flex items-center gap-3 ${profile.subscription_status === 'Ativo' ? 'bg-emerald-600/5 border-emerald-500/20' : 'bg-orange-600/5 border-orange-600/20'}`}>
+            <CreditCard size={14} className={profile.subscription_status === 'Ativo' ? 'text-emerald-500' : 'text-orange-500'}/>
             <div>
               <p className="text-[7px] font-black uppercase text-zinc-500 tracking-widest">Plano {profile.subscription_status}</p>
               <p className="text-[8px] font-bold text-white uppercase truncate">Expira: {profile.subscription_expires_at ? new Date(profile.subscription_expires_at).toLocaleDateString() : '---'}</p>
@@ -798,7 +924,7 @@ export default function App() {
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <Input label="Nome da Oficina" icon={Car} value={loginForm.workshopName} onChange={e => setLoginForm({...loginForm, workshopName: e.target.value})} placeholder="Minha Oficina Prime" required />
                   <Input label="Nome Completo (Responsável)" icon={User} value={loginForm.fullName} onChange={e => setLoginForm({...loginForm, fullName: e.target.value})} placeholder="João da Silva" required />
-                  <Input label="CPF" icon={FileDigit} value={loginForm.cpf} onChange={e => setLoginForm({...loginForm, cpf: e.target.value})} placeholder="000.000.000-00" required />
+                  <Input label="CPF" icon={FileDigit} value={loginForm.cpf} onChange={e => setLoginForm({...loginForm, depth: e.target.value})} placeholder="000.000.000-00" required />
                   <Input label="Endereço da Oficina" icon={MapPin} value={loginForm.address} onChange={e => setLoginForm({...loginForm, address: e.target.value})} placeholder="Rua das Flores, 123" required />
                   <Input label="E-mail Administrativo" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="admin@autoprime.com" required />
                   <Input label="Nova Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
@@ -831,7 +957,7 @@ export default function App() {
               <div className="bg-orange-600/10 p-5 rounded-full text-orange-600 animate-pulse"><ShieldAlert size={48}/></div>
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Assinatura Expirada</h2>
+              <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Assinatura Desativada</h2>
               <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest leading-relaxed">O período de teste ou sua assinatura ativa terminou. Por favor, renove sua conta para continuar gerenciando sua oficina.</p>
             </div>
             <div className="h-px bg-zinc-800 w-12 mx-auto"></div>
@@ -869,8 +995,8 @@ export default function App() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[ 
                     { id: 'budgets', label: 'Orçamentos', val: activeVehiclesMemo.filter(v => v.work_status === 'Aguardando Aprovação').length, icon: ClipboardList, color: 'text-zinc-500' }, 
-                    { id: 'registered', label: 'Pátio', val: activeVehiclesMemo.filter(v => v.work_status === 'Cadastrado').length, icon: Car, color: 'text-orange-500' }, 
-                    { id: 'in_work', label: 'Produção', val: activeVehiclesMemo.filter(v => v.work_status === 'In Work').length, icon: Wrench, color: 'text-blue-500' }, 
+                    { id: 'registered', label: 'Agendados', val: activeVehiclesMemo.filter(v => v.work_status === 'Agendados').length, icon: Car, color: 'text-orange-500' }, 
+                    { id: 'in_work', label: 'Em Produção', val: activeVehiclesMemo.filter(v => v.work_status === 'Em Produção').length, icon: Wrench, color: 'text-blue-500' }, 
                     { id: 'done', label: 'Concluídos', val: historyVehiclesMemo.length, icon: CheckCircle2, color: 'text-emerald-500' } 
                   ].map(st => (
                     <Card key={st.id} onClick={() => setDashboardFilter(st.id)} className={`p-4 border-l-2 transition-all ${dashboardFilter === st.id ? 'border-l-orange-600 bg-zinc-800' : 'border-l-zinc-800'}`}>
@@ -894,13 +1020,22 @@ export default function App() {
                       <div className="flex justify-between items-start">
                         <div>
                           <h4 className="text-sm font-black text-white uppercase italic leading-none">{v.brand} {v.model}</h4>
-                          <p className="text-zinc-600 text-[9px] font-bold uppercase mt-1 tracking-widest">{v.license_plate} • {v.location}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-zinc-600 text-[9px] font-bold uppercase tracking-widest">
+                              {v.license_plate} • {v.location} 
+                            </p>
+                            {v.scheduled_date && (
+                              <span className="bg-orange-600/10 text-orange-500 px-2 py-0.5 rounded border border-orange-500/20 text-[8px] font-black uppercase italic animate-pulse">
+                                Agenda: {v.scheduled_date}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className="text-[8px] px-2 py-0.5 rounded-full font-black bg-zinc-950 text-orange-500 border border-zinc-800 uppercase">{v.work_status}</span>
                       </div>
                       <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                           <div className="flex-1 min-w-0 flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
-                              {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
+                              {['Aguardando Aprovação', 'Agendados', 'Em Produção', 'Concluído'].map(st => (
                                   <button 
                                     key={st} 
                                     onClick={() => updateWorkStatus(v.id, st)} 
@@ -928,11 +1063,11 @@ export default function App() {
                             <h4 className="font-black text-white uppercase text-xs">{v.brand} {v.model}</h4>
                             <p className="text-[8px] text-zinc-600 uppercase mt-1">{v.license_plate} • {v.customer_name}</p>
                          </div>
-                         <Button variant="outline" className="opacity-0 group-hover:opacity-100 px-2 py-1.5" onClick={(e) => { e.stopPropagation(); updateWorkStatus(v.id, 'In Work'); }}><RotateCcw size={12}/></Button>
+                         <Button variant="outline" className="opacity-0 group-hover:opacity-100 px-2 py-1.5" onClick={(e) => { e.stopPropagation(); updateWorkStatus(v.id, 'Em Produção'); }}><RotateCcw size={12}/></Button>
                       </Card>
                    ))}
                    {historyVehiclesMemo.length === 0 && (
-                      <div className="col-span-full py-12 text-center text-zinc-800 font-black uppercase italic tracking-widest">Nenhum veículo no histórico</div>
+                      <div className="col-span-full py-12 text-center text-zinc-800 font-black uppercase italic tracking-widest">Nenhum veículo no histórico (Excluídos após 30 dias)</div>
                    )}
                 </div>
               </div>
@@ -1006,15 +1141,15 @@ export default function App() {
                   <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Painel Financeiro</h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="p-5 border-l-4 border-l-orange-600"><TrendingUp className="text-orange-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">Faturamento Bruto</p><p className="text-xl font-black text-white">R$ {financeMemo.rev.toLocaleString('pt-BR')}</p></Card>
-                    <Card className="p-5 border-l-4 border-l-red-600"><AlertTriangle className="text-red-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">Custos Fixos</p><p className="text-xl font-black text-red-500">R$ {financeMemo.exp.toLocaleString('pt-BR')}</p></Card>
-                    <Card className="p-5 border-l-4 border-l-emerald-600"><CheckCircle2 className="text-emerald-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">Lucro Estimado</p><p className="text-xl font-black text-emerald-500">R$ {financeMemo.profit.toLocaleString('pt-BR')}</p></Card>
+                    <Card className="p-5 border-l-4 border-l-red-600"><AlertTriangle className="text-red-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">Custos Fixos</p><p className="text-xl font-black text-yellow-500">R$ {financeMemo.exp.toLocaleString('pt-BR')}</p></Card>
+                    <Card className="p-5 border-l-4 border-l-emerald-600"><CheckCircle2 className="text-emerald-600 mb-2" size={18}/><p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">Lucro Estimado</p><p className={`text-xl font-black ${financeMemo.profit < 0 ? 'text-red-500' : 'text-emerald-500'}`}>R$ {financeMemo.profit.toLocaleString('pt-BR')}</p></Card>
                   </div>
                   <Card className="p-6 space-y-6">
                      <h3 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Gastos Operacionais Mensais</h3>
                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <Input label="Aluguel" type="number" value={fixedCosts.aluguel} onChange={e => setFixedCosts({...fixedCosts, aluguel: e.target.value})} icon={MapPin}/>
                         <Input label="Funcionário" type="number" value={fixedCosts.funcionario} onChange={e => setFixedCosts({...fixedCosts, funcionario: e.target.value})} icon={User}/>
-                        <Input label="Material" type="number" value={fixedCosts.material} onChange={e => setFixedCosts({...fixedCosts, material: e.target.value})} icon={Package}/>
+                        <Input label="Material (Stock)" type="number" value={totalInventoryValue} readOnly icon={Package}/>
                         <Input label="Luz" type="number" value={fixedCosts.luz} onChange={e => setFixedCosts({...fixedCosts, luz: e.target.value})} icon={Zap}/>
                         <Input label="Água" type="number" value={fixedCosts.agua} onChange={e => setFixedCosts({...fixedCosts, agua: e.target.value})} icon={Droplets}/>
                         <Input label="Internet" type="number" value={fixedCosts.internet} onChange={e => setFixedCosts({...fixedCosts, internet: e.target.value})} icon={Globe}/>
@@ -1075,6 +1210,7 @@ export default function App() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                        <Input label="Oficina" value={profile.workshop_name} onChange={e => setProfile({...profile, workshop_name: e.target.value})} icon={Car} placeholder="Nome Fantasia" />
                        <Input label="Telefone" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} icon={Phone} placeholder="9XX XXX XXX" />
+                       <Input label="Instagram" value={profile.instagram} onChange={e => setProfile({...profile, instagram: e.target.value})} icon={Instagram} placeholder="@seuinstagram" />
                        <Input label="NIF / CNPJ" value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} icon={FileText} placeholder="Identificação Fiscal" />
                        <Input label="E-mail" value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} icon={Mail} placeholder="oficina@exemplo.com" />
                        <div className="md:col-span-2"><Input label="Morada / Endereço" value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})} icon={MapPin} placeholder="Endereço Completo" /></div>
@@ -1088,7 +1224,10 @@ export default function App() {
               <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in">
                  <div className="flex justify-between items-center">
                     <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Gestão de Clientes (CRM)</h2>
-                    <Button onClick={generateCRMPDF} variant="outline" className="border-orange-600/50 text-orange-500 hover:bg-orange-600/10"><Download size={16}/> Baixar Lista CRM (PDF)</Button>
+                    <div className="flex gap-2">
+                      <Button onClick={clearCRM} variant="danger" className="px-4"><Trash2 size={16}/> Limpar Dados</Button>
+                      <Button onClick={generateCRMPDF} variant="outline" className="border-orange-600/50 text-orange-500 hover:bg-orange-600/10"><Download size={16}/> Baixar Lista CRM (PDF)</Button>
+                    </div>
                  </div>
                  
                  <Card className="overflow-hidden border-zinc-800 bg-zinc-950/50">
@@ -1096,23 +1235,23 @@ export default function App() {
                       <thead className="bg-zinc-900 text-zinc-500 uppercase font-black">
                         <tr>
                           <th className="p-4">Cliente</th>
-                          <th className="p-4">Veículo</th>
+                          <th className="p-4">Último Carro</th>
                           <th className="p-4">Placa</th>
-                          <th className="p-4">Contato (Promoções)</th>
+                          <th className="p-4">Contato</th>
                           <th className="p-4">Última Entrada</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-900">
-                        {vehicles.map((v, i) => (
+                        {crmData.map((c, i) => (
                           <tr key={i} className="hover:bg-zinc-900/30 transition-colors">
-                            <td className="p-4 font-bold text-white uppercase">{v.customer_name}</td>
-                            <td className="p-4 text-zinc-400 font-bold uppercase">{v.brand} {v.model}</td>
-                            <td className="p-4 text-orange-500 font-mono italic">{v.license_plate}</td>
-                            <td className="p-4 text-white font-bold">{v.phone}</td>
-                            <td className="p-4 text-zinc-600 font-mono">{new Date(v.created_at || Date.now()).toLocaleDateString('pt-BR')}</td>
+                            <td className="p-4 font-bold text-white uppercase">{c.customer_name}</td>
+                            <td className="p-4 text-zinc-400 font-bold uppercase">{c.last_brand} {c.last_model}</td>
+                            <td className="p-4 text-orange-500 font-mono italic">{c.last_license_plate}</td>
+                            <td className="p-4 text-white font-bold">{c.phone}</td>
+                            <td className="p-4 text-zinc-600 font-mono">{new Date(c.last_entry || Date.now()).toLocaleDateString('pt-BR')}</td>
                           </tr>
                         ))}
-                        {vehicles.length === 0 && (
+                        {crmData.length === 0 && (
                           <tr><td colSpan="5" className="p-12 text-center text-zinc-800 font-black uppercase italic tracking-widest">Nenhum cliente registrado no CRM</td></tr>
                         )}
                       </tbody>
@@ -1130,7 +1269,7 @@ export default function App() {
                        <div className="flex items-center gap-2 mt-2">
                           <div className={`w-2 h-2 rounded-full ${isSubscriptionValid ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                           <h3 className="text-xl font-black text-white uppercase italic">
-                             {isSubscriptionValid ? 'Ativo - Acesso total' : 'Expirado - Sem acesso ao aplicativo'}
+                             {isSubscriptionValid ? 'Ativo - Acesso total' : 'Desativado - Sem acesso ao aplicativo'}
                           </h3>
                        </div>
                        <p className="text-[10px] text-zinc-400 mt-4 uppercase font-bold">Vinculado ao e-mail:</p>
@@ -1143,7 +1282,7 @@ export default function App() {
                           {profile.subscription_expires_at ? new Date(profile.subscription_expires_at).toLocaleDateString('pt-BR') : 'Expirado'}
                        </h3>
                        <p className="text-[9px] text-zinc-500 mt-4 leading-relaxed font-bold uppercase tracking-wider italic">
-                          {isSubscriptionValid ? 'Sua licença está válida e todas as funcionalidades estão desbloqueadas.' : 'Seu acesso foi interrompido. Regularize sua assinatura para voltar a usar o AutoPrime.'}
+                          {isSubscriptionValid ? 'Sua licença está válida e todas as funcionalidades estão desbloqueadas.' : 'Seu acesso foi interrompido. Regularize sua assinatura para restaurar o acesso total.'}
                        </p>
                     </Card>
                  </div>
@@ -1199,11 +1338,12 @@ export default function App() {
                                value={newVehicle.type} 
                                onChange={e => setNewVehicle({...newVehicle, type: e.target.value})}
                             >
-                               <option value="Normal">Sedan / Hatch (Normal)</option>
-                               <option value="SUV">SUV / Jipe</option>
-                               <option value="Pick-up">Pick-up / Carrinha</option>
-                               <option value="Comercial">Furgão / Comercial</option>
-                               <option value="Moto">Mota / Motociclo</option>
+                               <option value="Sedan">Sedan</option>
+                               <option value="hatch">hatch</option>
+                               <option value="SUV">SUV</option>
+                               <option value="Picape">Picape</option>
+                               <option value="Moto">Moto</option>
+                               <option value="Van/Utilitários">Van/Utilitários</option>
                             </select>
                          </div>
                          <div className="flex flex-col gap-1">
@@ -1213,8 +1353,10 @@ export default function App() {
                                value={newVehicle.location} 
                                onChange={e => setNewVehicle({...newVehicle, location: e.target.value})}
                             >
-                               {["BOX 01", "BOX 02", "BOX 03", "BOX 04", "BOX 05", "BOX 06", "BOX 07", "BOX 08", "BOX 09", "BOX 10"].map(box => (
-                                 <option key={box} value={box}>{box}</option>
+                               {["BOX 01", "BOX 02", "BOX 03", "BOX 04", "BOX 05", "BOX 06", "BOX 07", "BOX 08", "BOX 09", "BOX 10"]
+                                 .filter(box => !activeVehiclesMemo.some(v => v.location === box))
+                                 .map(box => (
+                                   <option key={box} value={box}>{box}</option>
                                ))}
                             </select>
                          </div>
@@ -1232,7 +1374,16 @@ export default function App() {
                              type="button"
                              onClick={() => {
                                const current = newVehicle.selectedServices || [];
-                               const next = current.includes(service) ? current.filter(s => s !== service) : [...current, service];
+                               let next;
+                               if (current.includes(service)) {
+                                 next = current.filter(s => s !== service);
+                               } else {
+                                 if (service === "Pintura completa") {
+                                   next = [...serviceOptions];
+                                 } else {
+                                   next = [...current, service];
+                                 }
+                               }
                                setNewVehicle({...newVehicle, selectedServices: next});
                              }}
                              className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase text-left transition-all border ${newVehicle.selectedServices?.includes(service) ? 'bg-orange-600 border-orange-600 text-black italic shadow-lg shadow-orange-600/20' : 'bg-zinc-950 border-zinc-900 text-zinc-600 hover:text-white'}`}
@@ -1241,7 +1392,19 @@ export default function App() {
                            </button>
                          ))}
                       </div>
-                      <Input label="Outro Serviço ou Peça Específica" placeholder="Descreva aqui..." value={newVehicle.customPieceText} onChange={e => setNewVehicle({...newVehicle, customPieceText: e.target.value})} />
+                      <div className="space-y-2">
+                         <div className="flex gap-2 items-end">
+                            <Input label="Outro Serviço ou Peça Específica" placeholder="Descreva aqui..." value={newVehicle.customPieceText} onChange={e => setNewVehicle({...newVehicle, customPieceText: e.target.value})} />
+                            <Button onClick={() => { if(newVehicle.customPieceText.trim()){ setNewVehicle(prev => ({ ...prev, customServicesList: [...(prev.customServicesList || []), prev.customPieceText.trim()], customPieceText: "" })); } }} className="h-9 mb-0.5 px-6">Inserir</Button>
+                         </div>
+                         <div className="flex flex-wrap gap-2">
+                            {newVehicle.customServicesList?.map((s, i) => (
+                               <div key={i} className="bg-zinc-800 text-zinc-300 border border-zinc-700 px-3 py-1 rounded-lg text-[8px] font-black uppercase flex items-center gap-2 animate-in fade-in">
+                                  {s} <button type="button" onClick={() => setNewVehicle(prev => ({ ...prev, customServicesList: prev.customServicesList.filter((_, idx) => idx !== i) }))} className="text-zinc-500 hover:text-red-500 transition-colors"><X size={10}/></button>
+                               </div>
+                            ))}
+                         </div>
+                      </div>
                    </div>
 
                    <div className="space-y-4">
@@ -1266,7 +1429,7 @@ export default function App() {
                       </div>
                    </div>
 
-                   <Button type="submit" className="w-full py-4 tracking-[0.3em] italic font-black text-sm">FINALIZAR E REGISTAR ENTRADA</Button>
+                   <Button type="submit" className="w-full py-4 tracking-[0.3em] italic font-black text-sm uppercase">REGISTRAR ENTRADA</Button>
                 </form>
               </Card>
             </div>
@@ -1300,6 +1463,7 @@ export default function App() {
                             { label: "COR", value: viewingVehicle.color },
                             { label: "BOX", value: viewingVehicle.location },
                             { label: "TÉCNICO", value: viewingVehicle.professional || "Não Atribuído" },
+                            { label: "TÉCNICO", value: viewingVehicle.professional || "Não Atribuído" },
                             { label: "TIPO", value: viewingVehicle.vehicle_type || "Normal" },
                             { label: "ENTRADA", value: viewingVehicle.entry_time?.split(',')[0] || "---" }
                          ].map((item, idx) => (
@@ -1310,6 +1474,62 @@ export default function App() {
                               </p>
                            </div>
                          ))}
+                      </div>
+
+                      {/* Seção: Data de Agendamento - REFORÇADO VISUALMENTE */}
+                      <div className="p-6 bg-zinc-900 border-2 border-orange-600/50 rounded-3xl space-y-4 shadow-2xl shadow-orange-600/10">
+                          <p className="text-[11px] font-black text-orange-500 uppercase tracking-[0.2em] flex items-center gap-2 italic leading-none">
+                            <Calendar size={18} className="text-orange-600 animate-pulse"/> AGENDAMENTO DO VEÍCULO
+                          </p>
+                          <div className="flex gap-3">
+                             <input 
+                               type="date" 
+                               className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-5 py-3 text-white text-[12px] font-black outline-none focus:border-orange-500 transition-all shadow-inner"
+                               value={viewingVehicle.scheduled_date || ""}
+                               onChange={(e) => setViewingVehicle(prev => ({ ...prev, scheduled_date: e.target.value }))}
+                             />
+                             <div className="flex flex-col gap-2">
+                               <button 
+                                 onClick={async () => {
+                                   if (!viewingVehicle.scheduled_date) return showNotification("Selecione uma data", "danger");
+                                   const upd = { 
+                                      work_status: 'Agendados', 
+                                      status: 'active', 
+                                      current_stage: null, 
+                                      scheduled_date: viewingVehicle.scheduled_date 
+                                   };
+                                   const { error } = await supabase.from('autoprime_vehicles').update(upd).eq('id', viewingVehicle.id);
+                                   if (!error) {
+                                     setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, ...upd } : v));
+                                     setViewingVehicle(prev => ({ ...prev, ...upd }));
+                                     showNotification("Agendamento gravado!");
+                                   } else {
+                                     console.error(error);
+                                     showNotification("Erro ao salvar agendamento!", "danger");
+                                   }
+                                 }}
+                                 className="bg-orange-600 hover:bg-orange-700 text-black px-6 py-2.5 rounded-xl text-[10px] font-black uppercase italic transition-all active:scale-95 whitespace-nowrap shadow-lg shadow-orange-600/30 flex items-center gap-2"
+                               >
+                                 <Save size={14}/> Gravar
+                               </button>
+                               {viewingVehicle.scheduled_date && (
+                                 <button 
+                                   onClick={async () => {
+                                     const upd = { work_status: 'Aguardando Aprovação', scheduled_date: null };
+                                     const { error = null } = await supabase.from('autoprime_vehicles').update(upd).eq('id', viewingVehicle.id);
+                                     if (!error) {
+                                       setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, ...upd } : v));
+                                       setViewingVehicle(prev => ({ ...prev, ...upd }));
+                                       showNotification("Agendamento cancelado!");
+                                     }
+                                   }}
+                                   className="text-zinc-600 hover:text-red-500 text-[8px] font-black uppercase tracking-widest transition-all text-center leading-none"
+                                 >
+                                   Cancelar Agenda
+                                 </button>
+                               )}
+                             </div>
+                          </div>
                       </div>
 
                       {/* Seção: Materiais Aplicados */}
@@ -1406,7 +1626,7 @@ export default function App() {
                            <Activity size={14} className="text-orange-600"/> STATUS GERAL DO VEÍCULO
                          </p>
                          <div className="flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
-                            {['Aguardando Aprovação', 'Cadastrado', 'In Work', 'Concluído'].map(st => (
+                            {['Aguardando Aprovação', 'Agendados', 'Em Produção', 'Concluído'].map(st => (
                                <button 
                                  key={st} 
                                  onClick={() => updateWorkStatus(viewingVehicle.id, st)} 
