@@ -329,6 +329,8 @@ export default function App() {
       setIsAuthenticated(true);
       localStorage.setItem('autoprime_session_active', 'true');
       localStorage.setItem('autoprime_tenant_id', data.tenant_id);
+      // Forçar sincronização imediata do perfil e assinatura
+      fetchData();
     } else { setLoginError("Dados inválidos."); }
   };
 
@@ -924,7 +926,7 @@ export default function App() {
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <Input label="Nome da Oficina" icon={Car} value={loginForm.workshopName} onChange={e => setLoginForm({...loginForm, workshopName: e.target.value})} placeholder="Minha Oficina Prime" required />
                   <Input label="Nome Completo (Responsável)" icon={User} value={loginForm.fullName} onChange={e => setLoginForm({...loginForm, fullName: e.target.value})} placeholder="João da Silva" required />
-                  <Input label="CPF" icon={FileDigit} value={loginForm.cpf} onChange={e => setLoginForm({...loginForm, depth: e.target.value})} placeholder="000.000.000-00" required />
+                  <Input label="CPF" icon={FileDigit} value={loginForm.cpf} onChange={e => setLoginForm({...loginForm, cpf: e.target.value})} placeholder="000.000.000-00" required />
                   <Input label="Endereço da Oficina" icon={MapPin} value={loginForm.address} onChange={e => setLoginForm({...loginForm, address: e.target.value})} placeholder="Rua das Flores, 123" required />
                   <Input label="E-mail Administrativo" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="admin@autoprime.com" required />
                   <Input label="Nova Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
@@ -982,7 +984,7 @@ export default function App() {
             <div className="fixed inset-0 z-[500] md:hidden">
               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
               <div className="absolute left-0 top-0 bottom-0 w-64 bg-zinc-950 p-6 flex flex-col border-r border-zinc-900 animate-in slide-in-from-left duration-300">
-                <button onClick={() => setIsMobileMenuOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"><X size={20}/></button>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all z-10"><X size={20}/></button>
                 <SidebarContent />
               </div>
             </div>
@@ -1477,7 +1479,7 @@ export default function App() {
                       </div>
 
                       {/* Seção: Data de Agendamento - REFORÇADO VISUALMENTE */}
-                      <div className="p-6 bg-zinc-900 border-2 border-orange-600/50 rounded-3xl space-y-4 shadow-2xl shadow-orange-600/10">
+                      <div className="p-6 bg-zinc-900 border-2 border-orange-600/50 rounded-3xl shadow-2xl shadow-orange-600/10 space-y-4">
                           <p className="text-[11px] font-black text-orange-500 uppercase tracking-[0.2em] flex items-center gap-2 italic leading-none">
                             <Calendar size={18} className="text-orange-600 animate-pulse"/> AGENDAMENTO DO VEÍCULO
                           </p>
