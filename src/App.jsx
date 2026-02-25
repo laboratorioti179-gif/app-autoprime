@@ -351,13 +351,15 @@ export default function App() {
       return;
     }
 
-    const { error } = await supabase.from('autoprime_admins').insert([{
+    // Criar o registro na tabela de administradores
+    const { error: adminError } = await supabase.from('autoprime_admins').insert([{
       email: loginForm.email,
       password: loginForm.password,
       tenant_id: tenantId
     }]);
 
-    if (!error) {
+    if (!adminError) {
+      // Criar o registro na tabela de perfil
       await supabase.from('autoprime_profile').insert([{
         tenant_id: tenantId,
         workshop_name: loginForm.workshopName,
@@ -372,7 +374,8 @@ export default function App() {
       setAuthView('login');
       setLoginForm({ ...loginForm, password: "", confirmPassword: "" });
     } else {
-      setLoginError("Erro ao cadastrar. Tente novamente.");
+      setLoginError("Erro ao cadastrar na tabela de administradores.");
+      console.error(adminError);
     }
   };
 
