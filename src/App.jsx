@@ -193,7 +193,7 @@ export default function App() {
   // Configuração de Identidade Visual, Atalho e PWA (Nome e Ícone)
   useEffect(() => {
     // 1. Definir Nome do Aplicativo (Aparece no título e ao criar atalho)
-    const appName = "Auto Prime";
+    const appName = "AutoPrime";
     document.title = appName;
     
     // 2. Criar Ícone SVG Personalizado (Laranja e Preto)
@@ -201,11 +201,12 @@ export default function App() {
     const iconSvg = `
       <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="180" height="180" rx="40" fill="#EA580C"/>
-        <path d="M40 110 L60 85 L120 85 L140 110 Z" fill="black"/>
-        <rect x="45" y="105" width="90" height="25" rx="5" fill="black"/>
-        <circle cx="65" cy="130" r="12" fill="black"/>
-        <circle cx="115" cy="130" r="12" fill="black"/>
-        <path d="M30 60 Q90 20 150 60" stroke="black" stroke-width="8" fill="none" stroke-linecap="round"/>
+        <g transform="translate(90, 90) rotate(45) translate(-90, -90)">
+           <path d="M82 65 V35 A 8 8 0 0 1 98 35 V65" stroke="black" stroke-width="10" stroke-linecap="round" fill="none"/>
+           <circle cx="90" cy="35" r="3" fill="black"/>
+           <path d="M65 65 H115 L125 95 H55 Z" stroke="black" stroke-width="10" stroke-linejoin="round" fill="none"/>
+           <path d="M55 95 V135 H75 L80 115 L85 135 H95 L100 115 L105 135 H125 V95" stroke="black" stroke-width="10" stroke-linejoin="round" fill="none"/>
+        </g>
       </svg>
     `.trim();
     const iconDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(iconSvg)}`;
@@ -295,19 +296,26 @@ export default function App() {
   const fetchData = async () => {
     if (!supabase || !currentTenantId) return;
     try {
-      // Limpeza automática de veículos concluídos com mais de 30 dias
+      // 1. Busca imediata dos veículos (sem await para não bloquear a renderização da tela)
+      supabase.from('autoprime_vehicles').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false })
+        .then(({ data }) => setVehicles(data || []));
+
+      // 2. Limpeza automática em background
       const oneMonthAgo = new Date();
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-      await supabase.from('autoprime_vehicles').delete().eq('status', 'done').lt('created_at', oneMonthAgo.toISOString());
+      supabase.from('autoprime_vehicles').delete().eq('status', 'done').lt('created_at', oneMonthAgo.toISOString()).then();
 
-      const { data: vData } = await supabase.from('autoprime_vehicles').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false });
-      const { data: cData } = await supabase.from('autoprime_crm').select('*').eq('tenant_id', currentTenantId).order('last_entry', { ascending: false });
-      const { data: iData } = await supabase.from('autoprime_inventory').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false });
-      const { data: logData } = await supabase.from('autoprime_inventory_log').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false });
-      const { data: fData } = await supabase.from('autoprime_fixed_costs').select('*').eq('tenant_id', currentTenantId).maybeSingle(); 
-      const { data: pData } = await supabase.from('autoprime_profile').select('*').eq('tenant_id', currentTenantId).maybeSingle();
+      // 3. Busca de todos os outros dados em paralelo (muito mais rápido que em cascata)
+      const [
+        { data: cData }, { data: iData }, { data: logData }, { data: fData }, { data: pData }
+      ] = await Promise.all([
+        supabase.from('autoprime_crm').select('*').eq('tenant_id', currentTenantId).order('last_entry', { ascending: false }),
+        supabase.from('autoprime_inventory').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false }),
+        supabase.from('autoprime_inventory_log').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false }),
+        supabase.from('autoprime_fixed_costs').select('*').eq('tenant_id', currentTenantId).maybeSingle(),
+        supabase.from('autoprime_profile').select('*').eq('tenant_id', currentTenantId).maybeSingle()
+      ]);
       
-      setVehicles(vData || []);
       setCrmData(cData || []);
       setInventory(iData || []);
       setInventoryLog(logData || []);
@@ -384,23 +392,38 @@ export default function App() {
     setLoginError("");
     if (!supabase) return;
 
-    const { data, error } = await supabase
-      .from('autoprime_admins')
-      .select('id')
-      .eq('email', loginForm.email)
-      .maybeSingle();
-
-    if (error) {
-      setLoginError("Erro ao processar solicitação.");
+    if (!loginForm.password || loginForm.password !== loginForm.confirmPassword) {
+      setLoginError("As senhas não coincidem ou estão vazias.");
       return;
     }
 
-    if (data) {
-      showNotification("E-mail de recuperação enviado com sucesso!");
-      setAuthView('login');
-    } else {
-      setLoginError("E-mail não cadastrado no sistema.");
+    // 1. Verificar segurança: E-mail e CPF/CNPJ devem coincidir no perfil
+    const { data: profileData, error: profileError } = await supabase
+      .from('autoprime_profile')
+      .select('tenant_id')
+      .eq('email', loginForm.email)
+      .eq('cnpj', loginForm.cpf)
+      .maybeSingle();
+
+    if (profileError || !profileData) {
+      setLoginError("Credenciais inválidas (E-mail ou CPF/CNPJ incorretos).");
+      return;
     }
+
+    // 2. Atualizar a senha
+    const { error: updateError } = await supabase
+      .from('autoprime_admins')
+      .update({ password: loginForm.password })
+      .eq('tenant_id', profileData.tenant_id);
+
+    if (updateError) {
+      setLoginError("Erro ao redefinir a senha no sistema.");
+      return;
+    }
+
+    showNotification("Senha redefinida com sucesso!");
+    setAuthView('login');
+    setLoginForm({ ...loginForm, password: "", confirmPassword: "", cpf: "" });
   };
 
   const handleLogout = () => { setIsAuthenticated(false); localStorage.clear(); window.location.href = window.location.pathname; };
@@ -869,7 +892,8 @@ export default function App() {
           { id: 'settings', label: 'Ajustes', icon: Settings, visible: true }, 
           { id: 'profile', label: 'Oficina', icon: User, visible: true },
           { id: 'crm', label: 'CRM', icon: MessageCircle, visible: true },
-          { id: 'subscription_manager', label: 'Assinatura', icon: CreditCard, visible: true } 
+          { id: 'subscription_manager', label: 'Assinatura', icon: CreditCard, visible: true },
+          { id: 'my_profile', label: 'Meu Perfil', icon: User, visible: true } 
         ].filter(item => item.visible).map(item => (
           <button key={item.id} onClick={() => {setActiveTab(item.id); setIsMobileMenuOpen(false);}} className={`flex items-center gap-3 px-3 py-3 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all ${activeTab === item.id ? 'bg-orange-600 text-black italic shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'}`}><item.icon size={16} /> {item.label}</button>
         ))}
@@ -943,10 +967,13 @@ export default function App() {
 
               {authView === 'forgot' && (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
-                  <p className="text-[9px] text-zinc-400 text-center px-4 leading-relaxed font-bold uppercase italic tracking-wider">Insira seu e-mail para receber um link de troca de senha.</p>
+                  <p className="text-[9px] text-zinc-400 text-center px-4 leading-relaxed font-bold uppercase italic tracking-wider">Redefinição Segura: Confirme seu E-mail e CPF/CNPJ para trocar a senha.</p>
                   <Input label="E-mail" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="seu-email@exemplo.com" required />
+                  <Input label="CPF ou CNPJ" icon={FileDigit} value={loginForm.cpf} onChange={e => setLoginForm({...loginForm, cpf: e.target.value})} placeholder="000.000.000-00" required />
+                  <Input label="Nova Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
+                  <Input label="Confirmar Nova Senha" type="password" icon={Lock} value={loginForm.confirmPassword} onChange={e => setLoginForm({...loginForm, confirmPassword: e.target.value})} placeholder="••••••••" required />
                   {loginError && <p className="text-red-500 text-[9px] font-bold text-center">{loginError}</p>}
-                  <Button type="submit" className="w-full py-3">Enviar Link</Button>
+                  <Button type="submit" className="w-full py-3">Redefinir Senha</Button>
                   <div className="pt-4 border-t border-zinc-800 text-center">
                     <button type="button" onClick={() => {setAuthView('login'); setLoginError("");}} className="text-[10px] font-black uppercase text-zinc-500 tracking-widest hover:text-white transition-colors">Voltar para Login</button>
                   </div>
@@ -1302,6 +1329,60 @@ export default function App() {
                     <Button variant={isSubscriptionValid ? "outline" : "primary"} className="mt-2" onClick={() => window.open('https://billing.stripe.com', '_blank')}>
                        {isSubscriptionValid ? 'Gerenciar faturamento' : 'RENOVAR ASSINATURA AGORA'}
                     </Button>
+                 </Card>
+              </div>
+            )}
+
+            {activeTab === 'my_profile' && (
+              <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                 <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Meu Perfil</h2>
+                 <Card className="p-6 space-y-6 bg-zinc-900/50">
+                    <div className="flex flex-col items-center gap-4 mb-6">
+                       <div className="relative w-24 h-24 rounded-full bg-zinc-950 border-2 border-dashed border-zinc-800 flex items-center justify-center overflow-hidden hover:border-orange-600 transition-all group">
+                          {profile.profile_photo ? (
+                             <img src={profile.profile_photo} className="w-full h-full object-cover" alt="Perfil" />
+                          ) : (
+                             <User size={32} className="text-zinc-700" />
+                          )}
+                          <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                             <Camera size={20} className="text-white mb-1" />
+                             <span className="text-[8px] font-black text-white uppercase tracking-widest">Alterar</span>
+                             <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                   const reader = new FileReader();
+                                   reader.onloadend = () => setProfile({...profile, profile_photo: reader.result});
+                                   reader.readAsDataURL(file);
+                                }
+                             }} />
+                          </label>
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <Input label="Nome Completo" value={profile.owner_name} onChange={e => setProfile({...profile, owner_name: e.target.value})} icon={User} placeholder="Seu nome" />
+                       <Input label="CPF ou CNPJ" value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} icon={FileDigit} placeholder="000.000.000-00" />
+                       <Input label="Senha Atual" type="password" value="*******" readOnly icon={Lock} />
+                       <Input label="Nova Senha" type="password" placeholder="Digite para alterar" value={profile.new_password || ""} onChange={e => setProfile({...profile, new_password: e.target.value})} icon={Lock} />
+                    </div>
+                    
+                    <Button onClick={async () => {
+                       const { new_password, ...profileDataToSave } = profile;
+                       
+                       // Salva os dados do perfil (incluindo a foto base64)
+                       await supabase.from('autoprime_profile').upsert({ tenant_id: currentTenantId, ...profileDataToSave });
+                       
+                       // Se o utilizador digitou uma nova senha, atualiza na tabela de admins
+                       if (new_password) {
+                          const { error } = await supabase.from('autoprime_admins').update({ password: new_password }).eq('tenant_id', currentTenantId);
+                          if (error) {
+                             showNotification("Erro ao alterar senha", "danger");
+                             return;
+                          }
+                          setProfile({...profile, new_password: ""}); // limpa o campo
+                       }
+                       showNotification("Perfil atualizado com sucesso!");
+                    }} className="w-full py-3"><Save size={16}/> Guardar Meu Perfil</Button>
                  </Card>
               </div>
             )}
