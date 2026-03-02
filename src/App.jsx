@@ -460,7 +460,6 @@ export default function App() {
       doc.text(`MARCA / MODELO: ${vehicle.brand} ${vehicle.model}`, 15, 90);
       doc.text(`PLACA: ${vehicle.license_plate}`, 120, 90);
       doc.text(`COR: ${vehicle.color || '---'}`, 15, 96);
-      doc.text(`LOCAL (BOX): ${vehicle.location || '---'}`, 120, 96);
 
       // 4. Seção de Serviços (Tabela)
       const services = (vehicle.service_description || "").split(',').map(s => [s.trim()]);
@@ -696,10 +695,10 @@ export default function App() {
     const materialCost = Number(item.price || 0) * Number(debitForm.quantity);
     const newVehicleCost = (Number(viewingVehicle.cost || 0)) + materialCost;
 
-    const { error: invError } = await supabase.from('autoprime_inventory').update({ quantity: newQty }).eq('id', item.id);
+    const { error: invError = null } = await supabase.from('autoprime_inventory').update({ quantity: newQty }).eq('id', item.id);
     if (invError) return;
 
-    const { error: vehError } = await supabase.from('autoprime_vehicles').update({ cost: newVehicleCost }).eq('id', viewingVehicle.id);
+    const { error: vehError = null } = await supabase.from('autoprime_vehicles').update({ cost: newVehicleCost }).eq('id', viewingVehicle.id);
     if (vehError) return;
 
     const logEntry = {
@@ -1468,15 +1467,36 @@ export default function App() {
                             { label: "COR", value: viewingVehicle.color },
                             { label: "BOX", value: viewingVehicle.location },
                             { label: "TÉCNICO", value: viewingVehicle.professional || "Não Atribuído" },
-                            { label: "TÉCNICO", value: viewingVehicle.professional || "Não Atribuído" },
                             { label: "TIPO", value: viewingVehicle.vehicle_type || "Normal" },
                             { label: "ENTRADA", value: viewingVehicle.entry_time?.split(',')[0] || "---" }
                          ].map((item, idx) => (
                            <div key={idx} className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-xl">
                               <p className="text-[7px] font-black text-zinc-500 uppercase italic tracking-widest mb-1 leading-none">{item.label}</p>
-                              <p className={`font-bold uppercase text-[10px] truncate ${item.highlight ? 'text-orange-500 italic' : 'text-zinc-200'}`}>
-                                {item.value}
-                              </p>
+                              {item.label === "BOX" ? (
+                                <select 
+                                  className="bg-transparent font-bold uppercase text-[10px] text-orange-500 outline-none w-full appearance-none cursor-pointer"
+                                  value={viewingVehicle.location}
+                                  onChange={async (e) => {
+                                    const val = e.target.value;
+                                    const { error } = await supabase.from('autoprime_vehicles').update({ location: val }).eq('id', viewingVehicle.id);
+                                    if (!error) {
+                                      setViewingVehicle(prev => ({ ...prev, location: val }));
+                                      setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, location: val } : v));
+                                      showNotification("Box atualizado!");
+                                    }
+                                  }}
+                                >
+                                  {["BOX 01", "BOX 02", "BOX 03", "BOX 04", "BOX 05", "BOX 06", "BOX 07", "BOX 08", "BOX 09", "BOX 10"]
+                                    .filter(b => b === viewingVehicle.location || !activeVehiclesMemo.some(v => v.location === b))
+                                    .map(b => (
+                                      <option key={b} value={b} className="bg-zinc-900 text-white">{b}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <p className={`font-bold uppercase text-[10px] truncate ${item.highlight ? 'text-orange-500 italic' : 'text-zinc-200'}`}>
+                                  {item.value}
+                                </p>
+                              )}
                            </div>
                          ))}
                       </div>
