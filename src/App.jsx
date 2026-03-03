@@ -137,7 +137,7 @@ export default function App() {
 
   const [profile, setProfile] = useState({
     workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: "", instagram: "",
-    subscription_status: "Ativo", subscription_expires_at: null
+    subscription_status: "Ativo", subscription_expires_at: null, stripe_customer_id: null
   });
 
   const [appSettings, setAppSettings] = useState({
@@ -197,35 +197,18 @@ export default function App() {
     document.title = appName;
     
     // 2. Criar Ícone SVG Personalizado (Laranja e Preto)
-    // Este SVG será convertido em DataURL para ser usado como favicon e apple-touch-icon
     const iconSvg = `
-      <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="180" height="180" rx="40" fill="#EA580C"/>
-        <g transform="translate(90, 90) rotate(45) translate(-90, -90)">
-           <path d="M82 65 V35 A 8 8 0 0 1 98 35 V65" stroke="black" stroke-width="10" stroke-linecap="round" fill="none"/>
-           <circle cx="90" cy="35" r="3" fill="black"/>
-           <path d="M65 65 H115 L125 95 H55 Z" stroke="black" stroke-width="10" stroke-linejoin="round" fill="none"/>
-           <path d="M55 95 V135 H75 L80 115 L85 135 H95 L100 115 L105 135 H125 V95" stroke="black" stroke-width="10" stroke-linejoin="round" fill="none"/>
+      <svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="192" height="192" rx="42" fill="#EA580C"/>
+        <g transform="translate(96, 96) rotate(45) translate(-96, -96)">
+           <path d="M88 70 V40 A 8 8 0 0 1 104 40 V70" stroke="black" stroke-width="12" stroke-linecap="round" fill="none"/>
+           <circle cx="96" cy="40" r="4" fill="black"/>
+           <path d="M70 70 H122 L132 100 H60 Z" stroke="black" stroke-width="12" stroke-linejoin="round" fill="none"/>
+           <path d="M60 100 V140 H80 L85 120 L90 140 H102 L107 120 L112 140 H132 V100" stroke="black" stroke-width="12" stroke-linejoin="round" fill="none"/>
         </g>
       </svg>
     `.trim();
-    const iconDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(iconSvg)}`;
 
-    // Função para gerir links de ícone no head
-    const setIcon = (rel, href) => {
-      let link = document.querySelector(`link[rel="${rel}"]`);
-      if (!link) {
-        link = document.createElement('link');
-        link.rel = rel;
-        document.head.appendChild(link);
-      }
-      link.href = href;
-    };
-
-    setIcon('icon', iconDataUrl);
-    setIcon('apple-touch-icon', iconDataUrl);
-    setIcon('shortcut icon', iconDataUrl);
-    
     // 3. Configurar Meta Tags para comportamento de App Nativo
     const setMeta = (name, content) => {
         let meta = document.querySelector(`meta[name="${name}"]`);
@@ -243,6 +226,48 @@ export default function App() {
     setMeta("mobile-web-app-capable", "yes");
     setMeta("theme-color", "#EA580C"); // Cor Laranja do Tema
     setMeta("description", "Gestão profissional de estética e pintura automóvel.");
+
+    // 4. Converter SVG para PNG via Canvas para compatibilidade Mobile (iOS/Android)
+    // Sistemas móveis (especialmente iOS) ignoram SVGs para ícones de atalho. É necessário PNG.
+    const canvas = document.createElement('canvas');
+    canvas.width = 192;
+    canvas.height = 192;
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0);
+      const pngUrl = canvas.toDataURL('image/png');
+      
+      const setIcon = (rel, href, sizes = null) => {
+        let link = document.querySelector(`link[rel="${rel}"]`);
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = rel;
+          document.head.appendChild(link);
+        }
+        link.href = href;
+        if (sizes) link.setAttribute('sizes', sizes);
+      };
+
+      setIcon('icon', pngUrl, '192x192');
+      setIcon('shortcut icon', pngUrl);
+      setIcon('apple-touch-icon', pngUrl, '192x192');
+
+      // 5. Gerar Manifest dinâmico para Android (Garante o funcionamento do "Adicionar à Tela Principal")
+      const manifest = {
+         name: "AutoPrime",
+         short_name: "AutoPrime",
+         start_url: window.location.pathname,
+         display: "standalone",
+         background_color: "#000000",
+         theme_color: "#EA580C",
+         icons: [{ src: pngUrl, sizes: "192x192", type: "image/png", purpose: "any maskable" }]
+      };
+      const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
+      setIcon('manifest', URL.createObjectURL(manifestBlob));
+    };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(iconSvg);
   }, []);
 
   useEffect(() => {
@@ -427,6 +452,29 @@ export default function App() {
   };
 
   const handleLogout = () => { setIsAuthenticated(false); localStorage.clear(); window.location.href = window.location.pathname; };
+
+  const handleManageSubscription = async () => {
+    if (!supabase) return;
+    
+    if (profile.stripe_customer_id) {
+      try {
+        showNotification("A redirecionar para o portal seguro...");
+        const { data, error } = await supabase.functions.invoke('stripe_portal', {
+          body: { stripe_customer_id: profile.stripe_customer_id }
+        });
+        
+        if (!error && data?.url) {
+          window.location.href = data.url;
+          return;
+        }
+      } catch (err) {
+        console.error("Erro ao chamar stripe_portal:", err);
+      }
+    }
+    
+    // Fallback genérico caso não tenha ID ou dê erro
+    window.open('https://billing.stripe.com', '_blank');
+  };
 
   const generateBudgetPDF = (vehicle) => {
     try {
@@ -993,7 +1041,7 @@ export default function App() {
             </div>
             <div className="h-px bg-zinc-800 w-12 mx-auto"></div>
             <div className="space-y-4">
-              <Button onClick={() => window.open('https://stripe.com', '_blank')} className="w-full py-4 tracking-widest">RENOVAR ASSINATURA AGORA</Button>
+              <Button onClick={handleManageSubscription} className="w-full py-4 tracking-widest">RENOVAR ASSINATURA AGORA</Button>
               <button onClick={handleLogout} className="text-[10px] font-black uppercase text-zinc-600 hover:text-white transition-all tracking-widest">SAIR DA CONTA</button>
             </div>
           </Card>
@@ -1326,7 +1374,7 @@ export default function App() {
                           {isSubscriptionValid ? 'O processamento de pagamentos é feito de forma segura.' : 'Sua assinatura precisa de renovação para restaurar o acesso total.'}
                        </p>
                     </div>
-                    <Button variant={isSubscriptionValid ? "outline" : "primary"} className="mt-2" onClick={() => window.open('https://billing.stripe.com', '_blank')}>
+                    <Button variant={isSubscriptionValid ? "outline" : "primary"} className="mt-2" onClick={handleManageSubscription}>
                        {isSubscriptionValid ? 'Gerenciar faturamento' : 'RENOVAR ASSINATURA AGORA'}
                     </Button>
                  </Card>
