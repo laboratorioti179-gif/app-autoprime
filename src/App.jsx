@@ -135,6 +135,51 @@ export default function App() {
 
   const [inventorySearch, setInventorySearch] = useState("");
 
+  // Estado para o carrossel de marketing
+  const [marketingSlide, setMarketingSlide] = useState(0);
+  const marketingContent = useMemo(() => [
+    {
+      img: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&q=80&w=1200",
+      title: "A Revolução da",
+      highlight: "Gestão Automotiva.",
+      desc: "A plataforma definitiva para controlo de estética, pintura e cuidados profissionais do seu negócio.",
+      features: [
+        { icon: Layers, title: "Interface Inteligente", desc: "Design focado na agilidade do dia a dia." },
+        { icon: Activity, title: "Métricas de Sucesso", desc: "Visão clara do desempenho da oficina." },
+        { icon: Lock, title: "Segurança Total", desc: "Dados protegidos em servidores dedicados." }
+      ]
+    },
+    {
+      img: "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&q=80&w=1200",
+      title: "Controle Total na",
+      highlight: "Palma da Mão.",
+      desc: "Acompanhe orçamentos, veículos em produção e lucros em tempo real, de onde estiver.",
+      features: [
+        { icon: LayoutDashboard, title: "Controlo em Tempo Real", desc: "Acompanhe veículos e orçamentos numa tela." },
+        { icon: MessageCircle, title: "Experiência via WhatsApp", desc: "Envie links mágicos com o status ao vivo." },
+        { icon: Package, title: "Estoque & Custos Integrados", desc: "Debite materiais e calcule lucros na hora." }
+      ]
+    },
+    {
+      img: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&q=80&w=1200",
+      title: "Experiência Premium",
+      highlight: "Para o Cliente.",
+      desc: "Envie links de status pelo WhatsApp e fidelize clientes com um serviço de excelência.",
+      features: [
+        { icon: User, title: "Fidelização Garantida", desc: "Transparência total para o seu cliente." },
+        { icon: FileText, title: "Orçamentos Profissionais", desc: "Gere PDFs detalhados com 1 clique." },
+        { icon: Sparkles, title: "Padrão de Qualidade", desc: "Eleve a percepção de valor do seu negócio." }
+      ]
+    }
+  ], []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      const interval = setInterval(() => setMarketingSlide(prev => (prev + 1) % marketingContent.length), 4000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, marketingContent.length]);
+
   const [profile, setProfile] = useState({
     workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: "", instagram: "",
     subscription_status: "Ativo", subscription_expires_at: null, stripe_customer_id: null
@@ -162,6 +207,10 @@ export default function App() {
     customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Sedan", 
     color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação",
     selectedServices: [], customPieceText: "", customServicesList: [], photos: {} 
+  });
+
+  const [budgetForm, setBudgetForm] = useState({
+    customer_name: "", phone: "", brand: "", model: "", license_plate: "", color: "", service_description: "", price: ""
   });
 
   const [newItem, setNewItem] = useState({ name: "", brand: "", quantity: "", price: "" });
@@ -196,22 +245,17 @@ export default function App() {
     const appName = "AutoPrime";
     document.title = appName;
     
-    // 2. Criar Ícone SVG Personalizado (Laranja e Preto)
+    // 2. Criar Ícone SVG Personalizado (Laranja e Preto - Apenas Texto)
     const iconSvg = `
       <svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="192" height="192" rx="42" fill="#EA580C"/>
-        <g transform="translate(96, 96) rotate(45) translate(-96, -96)">
-           <path d="M88 70 V40 A 8 8 0 0 1 104 40 V70" stroke="black" stroke-width="12" stroke-linecap="round" fill="none"/>
-           <circle cx="96" cy="40" r="4" fill="black"/>
-           <path d="M70 70 H122 L132 100 H60 Z" stroke="black" stroke-width="12" stroke-linejoin="round" fill="none"/>
-           <path d="M60 100 V140 H80 L85 120 L90 140 H102 L107 120 L112 140 H132 V100" stroke="black" stroke-width="12" stroke-linejoin="round" fill="none"/>
-        </g>
+        <text x="96" y="122" font-family="sans-serif" font-weight="900" font-style="italic" font-size="80" fill="black" text-anchor="middle">AP</text>
       </svg>
     `.trim();
 
     // 3. Configurar Meta Tags para comportamento de App Nativo
     const setMeta = (name, content) => {
-        let meta = document.querySelector(`meta[name="${name}"]`);
+        let meta = document.querySelector(`meta[name="\${name}"]`);
         if (!meta) {
             meta = document.createElement('meta');
             meta.name = name;
@@ -240,7 +284,7 @@ export default function App() {
       const pngUrl = canvas.toDataURL('image/png');
       
       const setIcon = (rel, href, sizes = null) => {
-        let link = document.querySelector(`link[rel="${rel}"]`);
+        let link = document.querySelector(`link[rel="\${rel}"]`);
         if (!link) {
           link = document.createElement('link');
           link.rel = rel;
@@ -858,25 +902,23 @@ export default function App() {
     return inventoryLog.filter(log => log.vehicle_info === targetInfo);
   }, [inventoryLog, viewingVehicle]);
 
-  // Validação de Assinatura e Sincronização Automática com o Banco de Dados
+  // Validação de Assinatura ligada diretamente ao banco (atualizado pelo Webhook da Stripe)
   const isSubscriptionValid = useMemo(() => {
-    if (!profile.subscription_expires_at) return true; 
-    const expiry = new Date(profile.subscription_expires_at).getTime();
-    const now = Date.now();
-    return expiry > now;
-  }, [profile.subscription_expires_at]);
-
-  useEffect(() => {
-    const syncStatus = async () => {
-      if (!supabase || !currentTenantId || !profile.subscription_expires_at) return;
-      const correctStatus = isSubscriptionValid ? 'Ativo' : 'Desativado';
-      if (profile.subscription_status !== correctStatus) {
-        await supabase.from('autoprime_profile').update({ subscription_status: correctStatus }).eq('tenant_id', currentTenantId);
-        setProfile(prev => ({ ...prev, subscription_status: correctStatus }));
-      }
-    };
-    syncStatus();
-  }, [isSubscriptionValid, profile.subscription_status, currentTenantId, supabase]);
+    const status = (profile.subscription_status || '').toLowerCase();
+    
+    // 1. Se a Stripe (webhook) ou o banco definiu como expirada/cancelada, bloqueia imediatamente
+    if (status === 'expirada' || status === 'cancelada' || status === 'inativa' || status === 'past_due' || status === 'unpaid' || status === 'desativado') {
+      return false;
+    }
+    
+    // 2. Fallback de segurança local: Se a data passou, também bloqueia
+    if (profile.subscription_expires_at) {
+      const expiry = new Date(profile.subscription_expires_at).getTime();
+      if (expiry <= Date.now()) return false;
+    }
+    
+    return true; 
+  }, [profile.subscription_status, profile.subscription_expires_at]);
 
   if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando sistema...</div>;
 
@@ -887,10 +929,9 @@ export default function App() {
     return (
       <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center justify-center font-sans overflow-hidden">
         <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in-95 duration-700 text-center">
-           <div className="space-y-4">
-              <div className="inline-block p-4 bg-orange-600 rounded-[2rem] text-black shadow-2xl shadow-orange-600/20 rotate-12"><Car size={32} strokeWidth={3}/></div>
-              <h1 className="text-3xl font-black italic uppercase tracking-tighter">Auto<span className="text-orange-600">Prime</span></h1>
-              <div className="h-px w-12 bg-zinc-800 mx-auto"></div>
+           <div className="space-y-2 flex flex-col items-center">
+              <h1 className="text-5xl font-black italic uppercase tracking-tighter mt-4">Auto<span className="text-orange-600">Prime</span></h1>
+              <div className="h-px w-12 bg-zinc-800 mx-auto mt-4"></div>
            </div>
            <Card className="p-8 border-t-8 border-t-orange-600 bg-zinc-900/50 backdrop-blur-xl">
               <div className="space-y-6">
@@ -926,13 +967,13 @@ export default function App() {
 
   const SidebarContent = () => (
     <>
-      <div className="flex items-center gap-2 mb-8 px-2">
-        <div className="bg-orange-600 p-1.5 rounded-lg text-black rotate-12 shadow-md"><Paintbrush size={18} strokeWidth={3}/></div>
-        <h1 className="text-xl font-black text-white italic uppercase tracking-tighter">Auto<span className="text-orange-600">Prime</span></h1>
+      <div className="flex items-center gap-3 mb-8 px-2 flex-shrink-0">
+        <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter mt-1">Auto<span className="text-orange-600">Prime</span></h1>
       </div>
-      <nav className="flex flex-col gap-1 flex-1">
+      <nav className="flex flex-col gap-1 flex-1 overflow-y-auto no-scrollbar pb-4">
         {[ 
           { id: 'dashboard', label: 'Painel', icon: LayoutDashboard, visible: true }, 
+          { id: 'budget_generator', label: 'Orçamentos', icon: FileText, visible: true },
           { id: 'history', label: 'Histórico', icon: History, visible: true }, 
           { id: 'polishing', label: 'Polimento', icon: Sparkles, visible: appSettings.showPolishing }, 
           { id: 'inventory', label: 'Estoque', icon: Package, visible: appSettings.showInventory }, 
@@ -943,14 +984,14 @@ export default function App() {
           { id: 'subscription_manager', label: 'Assinatura', icon: CreditCard, visible: true },
           { id: 'my_profile', label: 'Meu Perfil', icon: User, visible: true } 
         ].filter(item => item.visible).map(item => (
-          <button key={item.id} onClick={() => {setActiveTab(item.id); setIsMobileMenuOpen(false);}} className={`flex items-center gap-3 px-3 py-3 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all ${activeTab === item.id ? 'bg-orange-600 text-black italic shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'}`}><item.icon size={16} /> {item.label}</button>
+          <button key={item.id} onClick={() => {setActiveTab(item.id); setIsMobileMenuOpen(false);}} className={`flex items-center gap-3 px-3 py-3 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all flex-shrink-0 ${activeTab === item.id ? 'bg-orange-600 text-black italic shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'}`}><item.icon size={16} /> {item.label}</button>
         ))}
       </nav>
-      <div className="mt-auto space-y-2">
+      <div className="mt-auto pt-4 border-t border-zinc-900/50 flex-shrink-0 space-y-2">
         {profile.subscription_status && (
-          <div className={`mx-2 p-3 rounded-xl border flex items-center gap-3 ${profile.subscription_status === 'Ativo' ? 'bg-emerald-600/5 border-emerald-500/20' : 'bg-orange-600/5 border-orange-600/20'}`}>
+          <div className={`w-full p-3 rounded-xl border flex items-center gap-3 ${profile.subscription_status === 'Ativo' ? 'bg-emerald-600/5 border-emerald-500/20' : 'bg-orange-600/5 border-orange-600/20'}`}>
             <CreditCard size={14} className={profile.subscription_status === 'Ativo' ? 'text-emerald-500' : 'text-orange-500'}/>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-[7px] font-black uppercase text-zinc-500 tracking-widest">Plano {profile.subscription_status}</p>
               <p className="text-[8px] font-bold text-white uppercase truncate">Expira: {profile.subscription_expires_at ? new Date(profile.subscription_expires_at).toLocaleDateString() : '---'}</p>
             </div>
@@ -969,65 +1010,109 @@ export default function App() {
         </div>
       )}
       {!isAuthenticated ? (
-        <div className="min-h-screen w-full bg-black flex items-center justify-center p-4">
-           <Card className="w-full max-w-sm p-8 bg-zinc-900/50 border-zinc-800 backdrop-blur-xl">
-              <div className="flex flex-col items-center gap-4 mb-8 text-center">
-                 <div className="bg-orange-600 p-3 rounded-2xl text-black rotate-12 shadow-lg"><Paintbrush size={24} strokeWidth={3}/></div>
-                 <h1 className="text-3xl font-black text-white italic uppercase tracking-tighter">Auto<span className="text-orange-600">Prime</span></h1>
-                 <p className="text-[9px] font-bold uppercase text-zinc-500 tracking-widest">
-                    {authView === 'login' ? 'Painel Administrativo' : authView === 'signup' ? 'Criar Nova Oficina' : 'Recuperar Acesso'}
-                 </p>
-              </div>
+        <div className="min-h-screen w-full bg-black flex">
+           {/* Lado Esquerdo - Autenticação */}
+           <div className="w-full lg:w-1/2 flex items-center justify-center p-4 relative z-10">
+             <Card className="w-full max-w-[320px] p-6 bg-zinc-900/50 border-zinc-800 backdrop-blur-xl">
+                <div className="flex flex-col items-center gap-2 mb-6 text-center">
+                   <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter mt-1">Auto<span className="text-orange-600">Prime</span></h1>
+                   <p className="text-[8px] font-bold uppercase text-zinc-500 tracking-widest mt-1">
+                      {authView === 'login' ? 'Painel Administrativo' : authView === 'signup' ? 'Criar Nova Oficina' : 'Recuperar Acesso'}
+                   </p>
+                </div>
 
-              {authView === 'login' && (
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <Input label="E-mail" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="exemplo@autoprime.com" required />
-                  <div className="space-y-1">
-                    <Input label="Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
-                    <div className="flex justify-end px-1">
-                      <button type="button" onClick={() => setAuthView('forgot')} className="text-[9px] font-black uppercase text-zinc-500 hover:text-orange-500 transition-colors">Esqueci minha senha</button>
+                {authView === 'login' && (
+                  <form onSubmit={handleLogin} className="space-y-3">
+                    <Input label="E-mail" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="exemplo@autoprime.com" required />
+                    <div className="space-y-1">
+                      <Input label="Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
+                      <div className="flex justify-end px-1">
+                        <button type="button" onClick={() => setAuthView('forgot')} className="text-[8px] font-black uppercase text-zinc-500 hover:text-orange-500 transition-colors">Esqueci minha senha</button>
+                      </div>
                     </div>
-                  </div>
-                  {loginError && <p className="text-red-500 text-[9px] font-bold text-center">{loginError}</p>}
-                  <Button type="submit" className="w-full py-3">Acessar</Button>
-                  <div className="pt-4 border-t border-zinc-800 text-center">
-                    <button type="button" onClick={() => {setAuthView('signup'); setLoginError("");}} className="text-[10px] font-black uppercase text-orange-500 tracking-widest hover:underline">Não tem conta? Cadastrar</button>
-                  </div>
-                </form>
-              )}
+                    {loginError && <p className="text-red-500 text-[8px] font-bold text-center">{loginError}</p>}
+                    <Button type="submit" className="w-full py-2.5">Acessar</Button>
+                    <div className="pt-3 border-t border-zinc-800 text-center">
+                      <button type="button" onClick={() => {setAuthView('signup'); setLoginError("");}} className="text-[9px] font-black uppercase text-orange-500 tracking-widest hover:underline">Não tem conta? Cadastrar</button>
+                    </div>
+                  </form>
+                )}
 
-              {authView === 'signup' && (
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <Input label="Nome da Oficina" icon={Car} value={loginForm.workshopName} onChange={e => setLoginForm({...loginForm, workshopName: e.target.value})} placeholder="Minha Oficina Prime" required />
-                  <Input label="Nome Completo (Responsável)" icon={User} value={loginForm.fullName} onChange={e => setLoginForm({...loginForm, fullName: e.target.value})} placeholder="João da Silva" required />
-                  <Input label="CPF" icon={FileDigit} value={loginForm.cpf} onChange={e => setLoginForm({...loginForm, cpf: e.target.value})} placeholder="000.000.000-00" required />
-                  <Input label="Endereço da Oficina" icon={MapPin} value={loginForm.address} onChange={e => setLoginForm({...loginForm, address: e.target.value})} placeholder="Rua das Flores, 123" required />
-                  <Input label="E-mail Administrativo" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="admin@autoprime.com" required />
-                  <Input label="Nova Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
-                  <Input label="Confirmar Senha" type="password" icon={Lock} value={loginForm.confirmPassword} onChange={e => setLoginForm({...loginForm, confirmPassword: e.target.value})} placeholder="••••••••" required />
-                  {loginError && <p className="text-red-500 text-[9px] font-bold text-center">{loginError}</p>}
-                  <Button type="submit" className="w-full py-3">Cadastrar</Button>
-                  <div className="pt-4 border-t border-zinc-800 text-center">
-                    <button type="button" onClick={() => {setAuthView('login'); setLoginError("");}} className="text-[10px] font-black uppercase text-zinc-500 tracking-widest hover:text-white transition-colors">Já tem conta? Entrar</button>
-                  </div>
-                </form>
-              )}
+                {authView === 'signup' && (
+                  <form onSubmit={handleSignUp} className="space-y-3">
+                    <Input label="Oficina" icon={Car} value={loginForm.workshopName} onChange={e => setLoginForm({...loginForm, workshopName: e.target.value})} placeholder="Nome" required />
+                    <Input label="Responsável" icon={User} value={loginForm.fullName} onChange={e => setLoginForm({...loginForm, fullName: e.target.value})} placeholder="Nome" required />
+                    <Input label="CPF" icon={FileDigit} value={loginForm.cpf} onChange={e => setLoginForm({...loginForm, cpf: e.target.value})} placeholder="000.000.000-00" required />
+                    <Input label="Endereço" icon={MapPin} value={loginForm.address} onChange={e => setLoginForm({...loginForm, address: e.target.value})} placeholder="Rua das Flores, 123" required />
+                    <Input label="E-mail" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="admin@autoprime.com" required />
+                    <Input label="Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
+                    <Input label="Confirmar" type="password" icon={Lock} value={loginForm.confirmPassword} onChange={e => setLoginForm({...loginForm, confirmPassword: e.target.value})} placeholder="••••••••" required />
+                    {loginError && <p className="text-red-500 text-[8px] font-bold text-center">{loginError}</p>}
+                    <Button type="submit" className="w-full py-2.5">Cadastrar</Button>
+                    <div className="pt-3 border-t border-zinc-800 text-center">
+                      <button type="button" onClick={() => {setAuthView('login'); setLoginError("");}} className="text-[9px] font-black uppercase text-zinc-500 tracking-widest hover:text-white transition-colors">Já tem conta? Entrar</button>
+                    </div>
+                  </form>
+                )}
 
-              {authView === 'forgot' && (
-                <form onSubmit={handleForgotPassword} className="space-y-4">
-                  <p className="text-[9px] text-zinc-400 text-center px-4 leading-relaxed font-bold uppercase italic tracking-wider">Redefinição Segura: Confirme seu E-mail e CPF/CNPJ para trocar a senha.</p>
-                  <Input label="E-mail" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="seu-email@exemplo.com" required />
-                  <Input label="CPF ou CNPJ" icon={FileDigit} value={loginForm.cpf} onChange={e => setLoginForm({...loginForm, cpf: e.target.value})} placeholder="000.000.000-00" required />
-                  <Input label="Nova Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
-                  <Input label="Confirmar Nova Senha" type="password" icon={Lock} value={loginForm.confirmPassword} onChange={e => setLoginForm({...loginForm, confirmPassword: e.target.value})} placeholder="••••••••" required />
-                  {loginError && <p className="text-red-500 text-[9px] font-bold text-center">{loginError}</p>}
-                  <Button type="submit" className="w-full py-3">Redefinir Senha</Button>
-                  <div className="pt-4 border-t border-zinc-800 text-center">
-                    <button type="button" onClick={() => {setAuthView('login'); setLoginError("");}} className="text-[10px] font-black uppercase text-zinc-500 tracking-widest hover:text-white transition-colors">Voltar para Login</button>
-                  </div>
-                </form>
-              )}
-           </Card>
+                {authView === 'forgot' && (
+                  <form onSubmit={handleForgotPassword} className="space-y-3">
+                    <p className="text-[8px] text-zinc-400 text-center px-2 leading-relaxed font-bold uppercase italic tracking-wider">Confirme seu E-mail e CPF/CNPJ.</p>
+                    <Input label="E-mail" type="email" icon={Mail} value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="seu-email@exemplo.com" required />
+                    <Input label="CPF ou CNPJ" icon={FileDigit} value={loginForm.cpf} onChange={e => setLoginForm({...loginForm, cpf: e.target.value})} placeholder="000.000.000-00" required />
+                    <Input label="Nova Senha" type="password" icon={Lock} value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} placeholder="••••••••" required />
+                    <Input label="Confirmar" type="password" icon={Lock} value={loginForm.confirmPassword} onChange={e => setLoginForm({...loginForm, confirmPassword: e.target.value})} placeholder="••••••••" required />
+                    {loginError && <p className="text-red-500 text-[8px] font-bold text-center">{loginError}</p>}
+                    <Button type="submit" className="w-full py-2.5">Redefinir</Button>
+                    <div className="pt-3 border-t border-zinc-800 text-center">
+                      <button type="button" onClick={() => {setAuthView('login'); setLoginError("");}} className="text-[9px] font-black uppercase text-zinc-500 tracking-widest hover:text-white transition-colors">Voltar para Login</button>
+                    </div>
+                  </form>
+                )}
+             </Card>
+           </div>
+           
+           {/* Lado Direito - Marketing */}
+           <div className="hidden lg:flex w-1/2 bg-zinc-950 flex-col justify-end relative overflow-hidden border-l border-zinc-900/50">
+              {/* Fotos de Marketing - Background (Carrossel) */}
+              <div className="absolute inset-0 bg-black">
+                 {marketingContent.map((content, idx) => (
+                   <img 
+                     key={idx} 
+                     src={content.img} 
+                     alt={`Marketing AutoPrime ${idx + 1}`} 
+                     className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${idx === marketingSlide ? 'opacity-40' : 'opacity-0'}`} 
+                   />
+                 ))}
+                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
+              </div>
+              
+              {/* Efeitos Visuais */}
+              <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-orange-600/20 blur-[100px] rounded-full pointer-events-none"></div>
+              
+              <div className="relative z-10 w-full p-12 lg:p-16">
+                 <div key={marketingSlide} className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-8">
+                    <div>
+                       <h2 className="text-3xl lg:text-4xl font-black text-white italic uppercase tracking-tighter mb-4 leading-none">{marketingContent[marketingSlide].title} <br/><span className="text-orange-600">{marketingContent[marketingSlide].highlight}</span></h2>
+                       <p className="text-zinc-400 text-xs leading-relaxed font-bold max-w-sm">{marketingContent[marketingSlide].desc}</p>
+                    </div>
+                    
+                    <div className="space-y-5">
+                       {marketingContent[marketingSlide].features.map((feature, idx) => (
+                          <div key={idx} className="flex items-start gap-4">
+                             <div className="bg-orange-600/20 p-2.5 rounded-xl text-orange-500 border border-orange-500/20 backdrop-blur-md">
+                                <feature.icon size={18}/>
+                             </div>
+                             <div className="mt-0.5">
+                                <h3 className="text-white font-black uppercase italic text-xs">{feature.title}</h3>
+                                <p className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest mt-1">{feature.desc}</p>
+                             </div>
+                          </div>
+                       ))}
+                    </div>
+                 </div>
+              </div>
+           </div>
         </div>
       ) : !isSubscriptionValid ? (
         <div className="min-h-screen w-full bg-black flex items-center justify-center p-6">
@@ -1050,8 +1135,7 @@ export default function App() {
         <>
           <header className="md:hidden flex items-center justify-between p-4 bg-zinc-950 border-b border-zinc-900 sticky top-0 z-50">
             <div className="flex items-center gap-2">
-               <div className="bg-orange-600 p-1 rounded-lg text-black rotate-12"><Paintbrush size={16}/></div>
-               <span className="text-lg font-black text-white italic tracking-tighter uppercase">Auto<span className="text-orange-600">Prime</span></span>
+               <span className="text-xl font-black text-white italic tracking-tighter uppercase mt-0.5">Auto<span className="text-orange-600">Prime</span></span>
             </div>
             <button onClick={() => setIsMobileMenuOpen(true)} className="text-zinc-400 p-2"><Menu size={18} /></button>
           </header>
@@ -1129,6 +1213,27 @@ export default function App() {
                     </Card>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'budget_generator' && (
+              <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                 <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Gerador de Orçamentos (PDF)</h2>
+                 <Card className="p-6 space-y-6 bg-zinc-900/50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <Input label="Nome do Cliente" value={budgetForm.customer_name} onChange={e => setBudgetForm({...budgetForm, customer_name: e.target.value})} icon={User} placeholder="Nome completo" />
+                       <Input label="Contacto" value={budgetForm.phone} onChange={e => setBudgetForm({...budgetForm, phone: e.target.value})} icon={Phone} placeholder="Telefone / WhatsApp" />
+                       <Input label="Marca" value={budgetForm.brand} onChange={e => setBudgetForm({...budgetForm, brand: e.target.value})} icon={Car} placeholder="Ex: BMW" />
+                       <Input label="Modelo" value={budgetForm.model} onChange={e => setBudgetForm({...budgetForm, model: e.target.value})} icon={Car} placeholder="Ex: Série 3" />
+                       <Input label="Placa / Matrícula" value={budgetForm.license_plate} onChange={e => setBudgetForm({...budgetForm, license_plate: e.target.value.toUpperCase()})} icon={FileDigit} placeholder="XX-XX-XX" />
+                       <Input label="Cor" value={budgetForm.color} onChange={e => setBudgetForm({...budgetForm, color: e.target.value})} icon={Paintbrush} placeholder="Ex: Preto" />
+                       <div className="md:col-span-2">
+                         <Input label="Descrição Técnica (Separe itens por vírgula)" value={budgetForm.service_description} onChange={e => setBudgetForm({...budgetForm, service_description: e.target.value})} icon={Wrench} placeholder="Ex: Pintura do para-choque, Polimento comercial" />
+                       </div>
+                       <Input label="Valor Total" value={budgetForm.price} onChange={e => setBudgetForm({...budgetForm, price: e.target.value})} icon={DollarSign} placeholder="0,00" />
+                    </div>
+                    <Button onClick={() => generateBudgetPDF(budgetForm)} className="w-full py-4 text-sm tracking-[0.2em] font-black italic"><Download size={16}/> Gerar Orçamento (PDF)</Button>
+                 </Card>
               </div>
             )}
 
@@ -1348,7 +1453,7 @@ export default function App() {
                        <div className="flex items-center gap-2 mt-2">
                           <div className={`w-2 h-2 rounded-full ${isSubscriptionValid ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                           <h3 className="text-xl font-black text-white uppercase italic">
-                             {isSubscriptionValid ? 'Ativo - Acesso total' : 'Desativado - Sem acesso ao aplicativo'}
+                             {isSubscriptionValid ? `${profile.subscription_status || 'Ativo'} - Acesso total` : `${profile.subscription_status || 'Desativado'} - Sem acesso`}
                           </h3>
                        </div>
                        <p className="text-[10px] text-zinc-400 mt-4 uppercase font-bold">Vinculado ao e-mail:</p>
@@ -1819,9 +1924,6 @@ export default function App() {
                                 R$ {Number(viewingVehicle.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </p>
                             </div>
-                            <button onClick={() => generateBudgetPDF(viewingVehicle)} className="w-full bg-zinc-800/80 hover:bg-zinc-700 px-4 py-2.5 rounded-xl text-zinc-300 font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 border border-zinc-700 shadow-xl transition-all active:scale-95">
-                               <Download size={16}/> GERAR ORÇAMENTO
-                            </button>
                          </div>
                          <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col">
                             <p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest italic leading-none">Custo Material</p>
