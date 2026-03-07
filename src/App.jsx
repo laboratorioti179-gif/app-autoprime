@@ -430,6 +430,12 @@ export default function App() {
       return;
     }
 
+    const { data: existingCpf } = await supabase.from('autoprime_profile').select('id').eq('cnpj', loginForm.cpf).maybeSingle();
+    if (existingCpf) {
+      setLoginError("CPF/CNPJ já cadastrado em outra conta.");
+      return;
+    }
+
     // Criar o registro na tabela de administradores
     const { error: adminError } = await supabase.from('autoprime_admins').insert([{
       email: loginForm.email,
