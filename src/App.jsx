@@ -245,17 +245,19 @@ export default function App() {
     const appName = "AutoPrime";
     document.title = appName;
     
-    // 2. Criar Ícone SVG Personalizado (Laranja e Preto - Apenas Texto)
+    // 2. Criar Ícone SVG Personalizado (Quadrado borda laranja, A branco e P laranja)
     const iconSvg = `
       <svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="192" height="192" rx="42" fill="#EA580C"/>
-        <text x="96" y="122" font-family="sans-serif" font-weight="900" font-style="italic" font-size="80" fill="black" text-anchor="middle">AP</text>
+        <rect x="8" y="8" width="176" height="176" rx="36" fill="#09090B" stroke="#EA580C" stroke-width="16"/>
+        <text x="92" y="130" font-family="sans-serif" font-weight="900" font-style="italic" font-size="90" text-anchor="middle">
+          <tspan fill="#FFFFFF">A</tspan><tspan fill="#EA580C">P</tspan>
+        </text>
       </svg>
     `.trim();
 
     // 3. Configurar Meta Tags para comportamento de App Nativo
     const setMeta = (name, content) => {
-        let meta = document.querySelector(`meta[name="\${name}"]`);
+        let meta = document.querySelector(`meta[name="${name}"]`);
         if (!meta) {
             meta = document.createElement('meta');
             meta.name = name;
@@ -283,15 +285,15 @@ export default function App() {
       ctx.drawImage(img, 0, 0);
       const pngUrl = canvas.toDataURL('image/png');
       
+      // Forçar a remoção de favicons antigos (Remove o símbolo da Vercel/Vite)
+      document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]').forEach(el => el.remove());
+      
       const setIcon = (rel, href, sizes = null) => {
-        let link = document.querySelector(`link[rel="\${rel}"]`);
-        if (!link) {
-          link = document.createElement('link');
-          link.rel = rel;
-          document.head.appendChild(link);
-        }
+        const link = document.createElement('link');
+        link.rel = rel;
         link.href = href;
         if (sizes) link.setAttribute('sizes', sizes);
+        document.head.appendChild(link);
       };
 
       setIcon('icon', pngUrl, '192x192');
@@ -1073,7 +1075,7 @@ export default function App() {
            </div>
            
            {/* Lado Direito - Marketing */}
-           <div className="hidden lg:flex w-1/2 bg-zinc-950 flex-col justify-end relative overflow-hidden border-l border-zinc-900/50">
+           <div className="hidden lg:flex w-1/2 bg-zinc-950 flex-col justify-center relative overflow-hidden border-l border-zinc-900/50">
               {/* Fotos de Marketing - Background (Carrossel) */}
               <div className="absolute inset-0 bg-black">
                  {marketingContent.map((content, idx) => (
