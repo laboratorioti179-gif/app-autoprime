@@ -53,7 +53,8 @@ import {
   CreditCard, 
   ShieldAlert, 
   Gauge,
-  Instagram
+  Instagram,
+  HelpCircle
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO SUPABASE ---
@@ -990,17 +991,18 @@ export default function App() {
           { id: 'profile', label: 'Oficina', icon: User, visible: true },
           { id: 'crm', label: 'CRM', icon: MessageCircle, visible: true },
           { id: 'subscription_manager', label: 'Assinatura', icon: CreditCard, visible: true },
-          { id: 'my_profile', label: 'Meu Perfil', icon: User, visible: true } 
+          { id: 'my_profile', label: 'Meu Perfil', icon: User, visible: true },
+          { id: 'about', label: 'Guia de Uso', icon: HelpCircle, visible: true }
         ].filter(item => item.visible).map(item => (
           <button key={item.id} onClick={() => {setActiveTab(item.id); setIsMobileMenuOpen(false);}} className={`flex items-center gap-3 px-3 py-3 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all flex-shrink-0 ${activeTab === item.id ? 'bg-orange-600 text-black italic shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'}`}><item.icon size={16} /> {item.label}</button>
         ))}
       </nav>
       <div className="mt-auto pt-4 border-t border-zinc-900/50 flex-shrink-0 space-y-2">
         {profile.subscription_status && (
-          <div className={`w-full p-3 rounded-xl border flex items-center gap-3 ${profile.subscription_status === 'Ativo' ? 'bg-emerald-600/5 border-emerald-500/20' : 'bg-orange-600/5 border-orange-600/20'}`}>
-            <CreditCard size={14} className={profile.subscription_status === 'Ativo' ? 'text-emerald-500' : 'text-orange-500'}/>
+          <div className={`w-full p-3 rounded-xl border flex items-center gap-3 ${isSubscriptionValid ? 'bg-emerald-600/5 border-emerald-500/20' : 'bg-red-600/5 border-red-500/20'}`}>
+            <CreditCard size={14} className={isSubscriptionValid ? 'text-emerald-500' : 'text-red-500'}/>
             <div className="flex-1 min-w-0">
-              <p className="text-[7px] font-black uppercase text-zinc-500 tracking-widest">Plano {profile.subscription_status}</p>
+              <p className="text-[7px] font-black uppercase text-zinc-500 tracking-widest">Plano {profile.subscription_status?.toLowerCase() === 'trial' ? 'TRIAL (7 DIAS)' : profile.subscription_status}</p>
               <p className="text-[8px] font-bold text-white uppercase truncate">Expira: {profile.subscription_expires_at ? new Date(profile.subscription_expires_at).toLocaleDateString() : '---'}</p>
             </div>
           </div>
@@ -1461,7 +1463,7 @@ export default function App() {
                        <div className="flex items-center gap-2 mt-2">
                           <div className={`w-2 h-2 rounded-full ${isSubscriptionValid ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                           <h3 className="text-xl font-black text-white uppercase italic">
-                             {isSubscriptionValid ? `${profile.subscription_status || 'Ativo'} - Acesso total` : `${profile.subscription_status || 'Desativado'} - Sem acesso`}
+                             {isSubscriptionValid ? (profile.subscription_status?.toLowerCase() === 'trial' ? 'TRIAL (7 DIAS) - Acesso total' : `${profile.subscription_status || 'Ativo'} - Acesso total`) : `${profile.subscription_status || 'Desativado'} - Sem acesso`}
                           </h3>
                        </div>
                        <p className="text-[10px] text-zinc-400 mt-4 uppercase font-bold">Vinculado ao e-mail:</p>
@@ -1545,6 +1547,94 @@ export default function App() {
                        showNotification("Perfil atualizado com sucesso!");
                     }} className="w-full py-3"><Save size={16}/> Guardar Meu Perfil</Button>
                  </Card>
+              </div>
+            )}
+
+            {activeTab === 'about' && (
+              <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in">
+                 <div className="text-center space-y-4 mb-8">
+                    <h2 className="text-3xl font-black text-white uppercase italic tracking-tight">Guia de <span className="text-orange-600">Uso da Plataforma</span></h2>
+                    <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest max-w-2xl mx-auto">Aprenda passo a passo como utilizar as principais ferramentas do seu sistema.</p>
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Guia 1 */}
+                    <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
+                       <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
+                          <div className="absolute inset-0 bg-gradient-to-br from-orange-600/5 to-transparent"></div>
+                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10">
+                             <div className="flex justify-between items-center mb-4">
+                                <span className="text-sm font-black text-white uppercase italic">Painel</span>
+                                <div className="bg-orange-600 text-white px-3 py-1.5 rounded-lg font-bold text-[8px] uppercase flex items-center gap-1 shadow-md"><Plus size={12}/> Nova Entrada</div>
+                             </div>
+                             <div className="grid grid-cols-2 gap-2">
+                                <div className="h-10 bg-zinc-900 border border-zinc-800 rounded-lg"></div>
+                                <div className="h-10 bg-zinc-900 border border-zinc-800 rounded-lg"></div>
+                             </div>
+                          </div>
+                       </div>
+                       <div className="p-6 space-y-3">
+                          <h3 className="text-lg font-black text-white uppercase italic flex items-center gap-2"><LayoutDashboard className="text-orange-500" size={18}/> 1. Cadastrar Veículo</h3>
+                          <p className="text-zinc-400 text-xs font-bold leading-relaxed">No menu <b>Painel</b>, clique no botão laranja <b>"Nova Entrada"</b> no canto superior direito. Preencha a ficha do cliente, serviços e tire fotos para a vistoria. O veículo entrará na fila imediatamente.</p>
+                       </div>
+                    </Card>
+
+                    {/* Guia 2 */}
+                    <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
+                       <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
+                          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent"></div>
+                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
+                             <p className="text-[7px] font-black text-zinc-400 uppercase flex items-center gap-1 italic"><BoxSelect size={10} className="text-blue-500"/> Materiais Aplicados</p>
+                             <div className="flex gap-2">
+                                <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-2 text-[8px] text-zinc-500 font-bold">Verniz PU</div>
+                                <div className="w-10 bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-2 text-[8px] text-white font-bold text-center">1</div>
+                                <div className="bg-zinc-800 text-zinc-300 font-black text-[7px] uppercase px-3 py-2 rounded-lg border border-zinc-700 leading-tight text-center">Debitar e<br/>Lançar</div>
+                             </div>
+                          </div>
+                       </div>
+                       <div className="p-6 space-y-3">
+                          <h3 className="text-lg font-black text-white uppercase italic flex items-center gap-2"><Package className="text-orange-500" size={18}/> 2. Debitar Estoque</h3>
+                          <p className="text-zinc-400 text-xs font-bold leading-relaxed">Na ficha técnica de um veículo, desça até <b>Materiais Aplicados</b>. Escolha o produto gasto, a quantidade e clique em lançar. O custo abate no lucro e o estoque diminui automaticamente.</p>
+                       </div>
+                    </Card>
+
+                    {/* Guia 3 */}
+                    <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
+                       <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
+                          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 to-transparent"></div>
+                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
+                             <p className="text-[7px] font-black text-orange-600 uppercase flex items-center gap-1 italic"><Share2 size={10}/> Link de Acompanhamento</p>
+                             <div className="flex gap-2 bg-zinc-900 p-2 rounded-lg border border-zinc-800">
+                                <div className="flex-1 bg-transparent px-2 text-[8px] text-zinc-500 font-mono py-1">autoprime.app/?v=123</div>
+                                <div className="bg-emerald-600 px-3 py-1.5 rounded-md text-white flex items-center gap-1"><MessageCircle size={10}/> <span className="text-[7px] font-black uppercase">Enviar</span></div>
+                             </div>
+                          </div>
+                       </div>
+                       <div className="p-6 space-y-3">
+                          <h3 className="text-lg font-black text-white uppercase italic flex items-center gap-2"><MessageCircle className="text-orange-500" size={18}/> 3. Enviar Status ao Vivo</h3>
+                          <p className="text-zinc-400 text-xs font-bold leading-relaxed">Dentro da ficha do veículo, localize a secção <b>Link de Acompanhamento</b>. Clique em <b>Enviar</b> para abrir o WhatsApp e enviar o portal privado ao cliente.</p>
+                       </div>
+                    </Card>
+
+                    {/* Guia 4 */}
+                    <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
+                       <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
+                          <div className="absolute inset-0 bg-gradient-to-br from-zinc-600/5 to-transparent"></div>
+                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
+                             <p className="text-[9px] font-black text-white uppercase italic">Orçamentos PDF</p>
+                             <div className="grid grid-cols-2 gap-2">
+                                <div className="h-8 bg-zinc-900 border border-zinc-800 rounded-lg"></div>
+                                <div className="h-8 bg-zinc-900 border border-zinc-800 rounded-lg"></div>
+                             </div>
+                             <div className="h-10 w-full bg-orange-600 rounded-lg text-white flex items-center justify-center gap-1 mt-2"><Download size={12}/> <span className="text-[8px] font-black uppercase tracking-widest">Gerar Orçamento (PDF)</span></div>
+                          </div>
+                       </div>
+                       <div className="p-6 space-y-3">
+                          <h3 className="text-lg font-black text-white uppercase italic flex items-center gap-2"><FileText className="text-orange-500" size={18}/> 4. Gerar Orçamentos</h3>
+                          <p className="text-zinc-400 text-xs font-bold leading-relaxed">Clique no menu <b>Orçamentos</b>. Digite os dados do carro e as avarias. O botão inferior gerará imediatamente um documento PDF oficial pronto para ser impresso ou enviado.</p>
+                       </div>
+                    </Card>
+                 </div>
               </div>
             )}
           </main>
