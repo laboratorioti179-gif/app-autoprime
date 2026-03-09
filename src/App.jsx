@@ -1042,7 +1042,7 @@ export default function App() {
                     </div>
                     {loginError && <p className="text-red-500 text-[8px] font-bold text-center">{loginError}</p>}
                     <Button type="submit" className="w-full py-2.5">Acessar</Button>
-                    <div className="pt-3 border-t border-zinc-800 text-center">
+                    <div className="pt-3 border-t border-zinc-800 text-center hidden">
                       <button type="button" onClick={() => {setAuthView('signup'); setLoginError("");}} className="text-[9px] font-black uppercase text-orange-500 tracking-widest hover:underline">Não tem conta? Cadastrar</button>
                     </div>
                   </form>
