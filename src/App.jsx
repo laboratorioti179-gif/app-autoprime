@@ -318,36 +318,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const loadScript = (src) => new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) return resolve();
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+
     const initApp = async () => {
-      const loadScript = (src) => new Promise((resolve) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
-        script.onload = () => resolve(true);
-        script.onerror = () => resolve(false);
-        document.head.appendChild(script);
-      });
-
       try {
-        const supabaseOk = await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
-        if (supabaseOk && window.supabase) {
-          const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-          setSupabase(client);
+        await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        setSupabase(sb);
 
-          const params = new URLSearchParams(window.location.search);
-          const vId = params.get('v');
-          if (vId) {
-            setIsPublicView(true);
-            const { data } = await client.from('autoprime_vehicles').select('*').eq('id', vId).maybeSingle();
-            if (data) setPublicVehicle(data);
-          }
-
-          const savedAuth = localStorage.getItem('autoprime_session_active');
-          const savedTenant = localStorage.getItem('autoprime_tenant_id');
-          if (savedAuth === 'true' && savedTenant) {
-            setCurrentTenantId(savedTenant);
-            setIsAuthenticated(true);
-          }
+        const savedAuth = localStorage.getItem('autoprime_session_active');
+        const savedTenant = localStorage.getItem('autoprime_tenant_id');
+        if (savedAuth === 'true' && savedTenant) {
+          setCurrentTenantId(savedTenant);
+          setIsAuthenticated(true);
         }
 
         await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
@@ -358,8 +348,33 @@ export default function App() {
         setAuthLoading(false);
       }
     };
+    
     initApp();
   }, []);
+
+  // SINCRONIZAÇÃO MÁGICA EM TEMPO REAL: Escuta veículos e pagamentos da Stripe
+  useEffect(() => {
+    if (!supabase || !currentTenantId) return;
+
+    const globalChannel = supabase
+      .channel('realtime-autoprime-data')
+      // Escuta novos veículos (como já tínhamos)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'autoprime_vehicles' }, () => {
+          console.log("Novo veículo! Atualizando tela...");
+          fetchData();
+      })
+      // Escuta mudanças no Perfil (Pagamentos da Stripe entrando no banco)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'autoprime_profile', filter: `tenant_id=eq.${currentTenantId}` }, (payload) => {
+          console.log("Status de Assinatura atualizado pela Stripe! Sincronizando tela...");
+          // Recarrega os dados imediatamente. Se a Stripe enviou "Ativa", a tela desbloqueia na hora.
+          fetchData(); 
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(globalChannel);
+    };
+  }, [supabase, currentTenantId]);
 
   useEffect(() => {
     if (supabase && isAuthenticated && currentTenantId) fetchData();
