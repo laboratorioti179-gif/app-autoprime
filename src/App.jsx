@@ -703,6 +703,20 @@ export default function App() {
       const { error } = await supabase.from('autoprime_vehicles').update(upd).eq('id', id);
       if (error) throw error;
 
+      // Disparar Webhook para o n8n informando a mudança de status geral
+      try {
+        fetch('https://n8n-projeto-n8n.bi9xft.easypanel.host/webhook-test/change_status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            event: 'STATUS_CHANGED', 
+            new_status: newStatus, 
+            vehicle: currentV,
+            tenant_id: currentTenantId 
+          })
+        }).catch(() => {});
+      } catch (err) {}
+
       setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd, scheduled_date: scheduledDate } : v));
       if (viewingVehicle && viewingVehicle.id === id) setViewingVehicle(prev => ({ ...prev, ...upd, scheduled_date: scheduledDate }));
       showNotification("Status atualizado!");
@@ -718,6 +732,22 @@ export default function App() {
       const upd = { current_stage: stage };
       const { error } = await supabase.from('autoprime_vehicles').update(upd).eq('id', id);
       if (error) throw error;
+
+      const currentV = vehicles.find(v => v.id === id);
+
+      // Disparar Webhook para o n8n informando a mudança de etapa na estufa
+      try {
+        fetch('COLOQUE_SEU_WEBHOOK_DO_N8N_AQUI', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            event: 'STAGE_CHANGED', 
+            new_stage: stage, 
+            vehicle: currentV,
+            tenant_id: currentTenantId 
+          })
+        }).catch(() => {});
+      } catch (err) {}
 
       setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd } : v));
       if (viewingVehicle && viewingVehicle.id === id) setViewingVehicle(prev => ({ ...prev, ...upd }));
