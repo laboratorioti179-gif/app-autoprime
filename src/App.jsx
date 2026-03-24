@@ -211,7 +211,7 @@ export default function App() {
   });
 
   const [budgetForm, setBudgetForm] = useState({
-    customer_name: "", phone: "", brand: "", model: "", license_plate: "", color: "", service_description: "", price: ""
+    customer_name: "", phone: "", brand: "", model: "", license_plate: "", color: "", services: [{ description: "", price: "" }]
   });
 
   const [newItem, setNewItem] = useState({ name: "", brand: "", quantity: "", price: "" });
@@ -601,12 +601,16 @@ export default function App() {
       doc.text(`COR: ${vehicle.color || '---'}`, 15, 96);
 
       // 4. Seção de Serviços (Tabela)
-      const services = (vehicle.service_description || "").split(',').map(s => [s.trim()]);
+      const servicesList = (vehicle.services || []).map(s => [
+        s.description || '---', 
+        `R$ ${Number(s.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+      ]);
+
       if (doc.autoTable) {
         doc.autoTable({
           startY: 105,
-          head: [['DESCRIÇÃO TÉCNICA DO SERVIÇO']],
-          body: services,
+          head: [['DESCRIÇÃO TÉCNICA DO SERVIÇO', 'VALOR']],
+          body: servicesList,
           theme: 'grid',
           headStyles: { fillColor: orange, textColor: [255, 255, 255], fontSize: 9 },
           styles: { fontSize: 8, cellPadding: 3 },
@@ -616,12 +620,14 @@ export default function App() {
 
       // 5. Valor Final
       const finalY = doc.lastAutoTable.finalY + 15;
+      const totalCalculated = (vehicle.services || []).reduce((acc, curr) => acc + Number(curr.price || 0), 0);
+
       doc.setFillColor(...dark);
       doc.rect(15, finalY - 8, 180, 12, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
-      doc.text(`VALOR TOTAL DO ORÇAMENTO: R$ ${Number(vehicle.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 105, finalY, { align: "center" });
+      doc.text(`VALOR TOTAL DO ORÇAMENTO: R$ ${totalCalculated.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 105, finalY, { align: "center" });
 
       // 6. Assinaturas (Fim da página)
       const pageHeight = doc.internal.pageSize.height;
@@ -1282,10 +1288,26 @@ export default function App() {
                        <Input label="Modelo" value={budgetForm.model} onChange={e => setBudgetForm({...budgetForm, model: e.target.value})} icon={Car} placeholder="Ex: Série 3" />
                        <Input label="Placa / Matrícula" value={budgetForm.license_plate} onChange={e => setBudgetForm({...budgetForm, license_plate: e.target.value.toUpperCase()})} icon={FileDigit} placeholder="XX-XX-XX" />
                        <Input label="Cor" value={budgetForm.color} onChange={e => setBudgetForm({...budgetForm, color: e.target.value})} icon={Paintbrush} placeholder="Ex: Preto" />
-                       <div className="md:col-span-2">
-                         <Input label="Descrição Técnica (Separe itens por vírgula)" value={budgetForm.service_description} onChange={e => setBudgetForm({...budgetForm, service_description: e.target.value})} icon={Wrench} placeholder="Ex: Pintura do para-choque, Polimento comercial" />
+                       <div className="md:col-span-2 space-y-3">
+                         <div className="flex justify-between items-center">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">Serviços e Valores</label>
+                            <button type="button" onClick={() => setBudgetForm({...budgetForm, services: [...budgetForm.services, { description: "", price: "" }]})} className="text-[9px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest flex items-center gap-1"><Plus size={12}/> Adicionar Serviço</button>
+                         </div>
+                         {budgetForm.services.map((srv, idx) => (
+                           <div key={idx} className="flex gap-2 items-end animate-in fade-in">
+                              <div className="flex-1">
+                                <Input placeholder="Ex: Pintura do para-choque" value={srv.description} onChange={e => { const newSrv = [...budgetForm.services]; newSrv[idx].description = e.target.value; setBudgetForm({...budgetForm, services: newSrv}); }} icon={Wrench} />
+                              </div>
+                              <div className="w-32">
+                                <Input placeholder="Valor" type="number" value={srv.price} onChange={e => { const newSrv = [...budgetForm.services]; newSrv[idx].price = e.target.value; setBudgetForm({...budgetForm, services: newSrv}); }} icon={DollarSign} />
+                              </div>
+                              <button type="button" onClick={() => { const newSrv = budgetForm.services.filter((_, i) => i !== idx); setBudgetForm({...budgetForm, services: newSrv.length ? newSrv : [{ description: "", price: "" }]}); }} className="mb-1 p-2 bg-red-600/10 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-all"><Trash2 size={16}/></button>
+                           </div>
+                         ))}
+                         <div className="flex justify-end pt-2">
+                            <p className="text-sm font-black text-white uppercase tracking-widest bg-zinc-950 px-4 py-2 border border-zinc-800 rounded-lg">Total: <span className="text-emerald-500">R$ {budgetForm.services.reduce((acc, curr) => acc + Number(curr.price || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></p>
+                         </div>
                        </div>
-                       <Input label="Valor Total" value={budgetForm.price} onChange={e => setBudgetForm({...budgetForm, price: e.target.value})} icon={DollarSign} placeholder="0,00" />
                     </div>
                     <Button onClick={() => generateBudgetPDF(budgetForm)} className="w-full py-4 text-sm tracking-[0.2em] font-black italic"><Download size={16}/> Gerar Orçamento (PDF)</Button>
                  </Card>
