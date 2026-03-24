@@ -581,11 +581,11 @@ export default function App() {
 
       // Título do Documento
       doc.setTextColor(...orange);
-      doc.setFontSize(10);
+      doc.setFontSize(8);
       doc.setFont("helvetica", "bold");
-      doc.text("ORÇAMENTO TÉCNICO DE SERVIÇOS", 155, 18, { align: "right" });
+      doc.text("ORÇAMENTO TÉCNICO DE SERVIÇOS", 195, 15, { align: "right" });
       doc.setTextColor(255, 255, 255);
-      doc.text(`DATA: ${new Date().toLocaleDateString('pt-BR')}`, 155, 24, { align: "right" });
+      doc.text(`DATA: ${new Date().toLocaleDateString('pt-BR')}`, 195, 20, { align: "right" });
 
       // 2. Dados do Cliente
       doc.setTextColor(...dark);
