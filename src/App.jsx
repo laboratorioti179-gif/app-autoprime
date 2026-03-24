@@ -468,7 +468,7 @@ export default function App() {
         owner_name: loginForm.fullName,
         cnpj: loginForm.cpf,
         address: loginForm.address,
-        subscription_status: 'Ativo',
+        subscription_status: 'Trial',
         subscription_expires_at: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString()
       }]);
       showNotification("Cadastro realizado com sucesso!");
@@ -1539,7 +1539,7 @@ export default function App() {
                        <div className="flex items-center gap-2 mt-2">
                           <div className={`w-2 h-2 rounded-full ${isSubscriptionValid ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                           <h3 className="text-xl font-black text-white uppercase italic">
-                             {isSubscriptionValid ? (profile.subscription_status?.toLowerCase() === 'trial' ? 'TRIAL (7 DIAS) - Acesso total' : `${profile.subscription_status || 'Ativo'} - Acesso total`) : `${profile.subscription_status || 'Desativado'} - Sem acesso`}
+                             {isSubscriptionValid ? (profile.subscription_status?.toLowerCase() === 'trial' ? 'Ativo - Modo Trial' : `${profile.subscription_status || 'Ativo'} - Acesso total`) : `${profile.subscription_status || 'Desativado'} - Sem acesso`}
                           </h3>
                        </div>
                        <p className="text-[10px] text-zinc-400 mt-4 uppercase font-bold">Vinculado ao e-mail:</p>
