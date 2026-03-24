@@ -540,8 +540,17 @@ export default function App() {
       }
     }
     
-    // Fallback genérico caso não tenha ID ou dê erro
-    window.open('https://billing.stripe.com', '_blank');
+    // Se a pessoa não tiver ID ainda (nova assinatura), redireciona para o link de pagamento da Stripe com os dados pré-preenchidos
+    try {
+      showNotification("A redirecionar para o pagamento seguro...");
+      const userEmail = encodeURIComponent(profile.email || loginForm.email || "");
+      // Redireciona para o link da Stripe enviando o e-mail e o ID da oficina para o Webhook reconhecer o pagamento
+      const paymentLink = `https://buy.stripe.com/eVq14f39maOjaWlaHUgIo00?prefilled_email=${userEmail}&client_reference_id=${currentTenantId}`;
+      window.location.href = paymentLink;
+    } catch (err) {
+      console.error("Erro ao redirecionar para pagamento:", err);
+      showNotification("Erro ao abrir página de pagamentos.", "danger");
+    }
   };
 
   const generateBudgetPDF = (vehicle) => {
@@ -1093,7 +1102,7 @@ export default function App() {
                     </div>
                     {loginError && <p className="text-red-500 text-[8px] font-bold text-center">{loginError}</p>}
                     <Button type="submit" className="w-full py-2.5">Acessar</Button>
-                    <div className="pt-3 border-t border-zinc-800 text-center hidden">
+                    <div className="pt-3 border-t border-zinc-800 text-center">
                       <button type="button" onClick={() => {setAuthView('signup'); setLoginError("");}} className="text-[9px] font-black uppercase text-orange-500 tracking-widest hover:underline">Não tem conta? Cadastrar</button>
                     </div>
                   </form>
