@@ -805,7 +805,7 @@ export default function App() {
       model: newVehicle.model,
       license_plate: newVehicle.licensePlate, // Corrigido de license_plate para licensePlate
       color: newVehicle.color, 
-      entry_time: new Date().toLocaleString('pt-BR'),
+      entry_time: new Date().toISOString(),
       service_description: desc, 
       status: newVehicle.workStatus === 'Concluído' ? 'done' : 'active',
       work_status: newVehicle.workStatus, 
@@ -901,7 +901,12 @@ export default function App() {
     if (logData) setInventoryLog([logData[0], ...inventoryLog]);
     
     setDebitForm({ inventoryId: "", quantity: 1 });
-    showNotification("Material debitado!");
+    
+    if (newQty < 5) {
+      showNotification(`Atenção: O item "${item.name}" está acabando (Restam ${newQty}).`, "danger");
+    } else {
+      showNotification("Material debitado!");
+    }
   };
 
   const handleUpdateVehiclePhotos = async (e) => {
