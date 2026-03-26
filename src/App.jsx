@@ -819,6 +819,11 @@ export default function App() {
       current_stage: newVehicle.workStatus === 'Em Produção' ? 'Funilaria' : null
     };
     
+    // Experiência instantânea: Fecha a tela e limpa os dados antes de esperar a resposta do servidor
+    setIsModalOpen(false);
+    setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Sedan", color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação", selectedServices: [], customPieceText: "", customServicesList: [], photos: {} });
+    showNotification("Registrando veículo...");
+
     // Inserir Veículo com tratamento de erro
     const { data, error: insertError } = await supabase.from('autoprime_vehicles').insert([payload]).select();
 
@@ -828,21 +833,19 @@ export default function App() {
       return;
     }
     
-    // Sincronizar com CRM
+    // Sincronizar com CRM utilizando os dados capturados no payload
     await supabase.from('autoprime_crm').upsert({
       tenant_id: currentTenantId,
-      customer_name: newVehicle.customerName,
-      phone: newVehicle.phone,
-      last_brand: newVehicle.brand,
-      last_model: newVehicle.model,
-      last_license_plate: newVehicle.licensePlate,
-      last_entry: new Date().toISOString()
+      customer_name: payload.customer_name,
+      phone: payload.phone,
+      last_brand: payload.brand,
+      last_model: payload.model,
+      last_license_plate: payload.license_plate,
+      last_entry: payload.entry_time
     }, { onConflict: 'tenant_id, phone' });
 
     if (data && data.length > 0) {
       setVehicles([data[0], ...vehicles]);
-      setIsModalOpen(false);
-      setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Sedan", color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação", selectedServices: [], customPieceText: "", customServicesList: [], photos: {} });
       showNotification("Cadastrado!");
       fetchData(); 
     }
@@ -903,7 +906,21 @@ export default function App() {
     setDebitForm({ inventoryId: "", quantity: 1 });
     
     if (newQty < 5) {
-      showNotification(`Atenção: O item "${item.name}" está acabando (Restam ${newQty}).`, "danger");
+      const msg = `O item "${item.name}" está acabando (Restam ${newQty}).`;
+      showNotification(`Atenção: ${msg}`, "danger");
+      
+      // Dispara a notificação nativa do sistema (estilo WhatsApp/Sistema)
+      if ("Notification" in window) {
+        if (Notification.permission === "granted") {
+          new Notification("AutoPrime: Estoque Baixo", { body: msg });
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then(permission => {
+            if (permission === "granted") {
+              new Notification("AutoPrime: Estoque Baixo", { body: msg });
+            }
+          });
+        }
+      }
     } else {
       showNotification("Material debitado!");
     }
