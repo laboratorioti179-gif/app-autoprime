@@ -824,30 +824,31 @@ export default function App() {
     setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Sedan", color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação", selectedServices: [], customPieceText: "", customServicesList: [], photos: {} });
     showNotification("Registrando veículo...");
 
-    // Inserir Veículo com tratamento de erro
-    const { data, error: insertError } = await supabase.from('autoprime_vehicles').insert([payload]).select();
+    try {
+      // Inserir Veículo com tratamento de erro protegido contra quebras de rede
+      const { data, error: insertError } = await supabase.from('autoprime_vehicles').insert([payload]).select();
 
-    if (insertError) {
-      console.error("Erro Supabase:", insertError);
-      showNotification("Erro ao registrar veículo no banco de dados.", "danger");
-      return;
-    }
-    
-    // Sincronizar com CRM utilizando os dados capturados no payload
-    await supabase.from('autoprime_crm').upsert({
-      tenant_id: currentTenantId,
-      customer_name: payload.customer_name,
-      phone: payload.phone,
-      last_brand: payload.brand,
-      last_model: payload.model,
-      last_license_plate: payload.license_plate,
-      last_entry: payload.entry_time
-    }, { onConflict: 'tenant_id, phone' });
+      if (insertError) throw insertError;
+      
+      // Sincronizar com CRM utilizando os dados capturados no payload
+      await supabase.from('autoprime_crm').upsert({
+        tenant_id: currentTenantId,
+        customer_name: payload.customer_name,
+        phone: payload.phone,
+        last_brand: payload.brand,
+        last_model: payload.model,
+        last_license_plate: payload.license_plate,
+        last_entry: payload.entry_time
+      }, { onConflict: 'tenant_id, phone' });
 
-    if (data && data.length > 0) {
-      setVehicles([data[0], ...vehicles]);
-      showNotification("Cadastrado!");
-      fetchData(); 
+      if (data && data.length > 0) {
+        setVehicles(prev => [data[0], ...prev]);
+        showNotification("Cadastrado com sucesso!");
+        fetchData(); 
+      }
+    } catch (err) {
+      console.error("Erro Supabase/Rede:", err);
+      showNotification("Erro na conexão com o banco de dados. Verifique a rede e tente novamente.", "danger");
     }
   };
 
