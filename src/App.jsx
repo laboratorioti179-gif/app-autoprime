@@ -183,7 +183,7 @@ export default function App() {
 
   const [profile, setProfile] = useState({
     workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: "", instagram: "",
-    subscription_status: "Ativo", subscription_expires_at: null, stripe_customer_id: null
+    subscription_status: "Pendente", subscription_expires_at: null, stripe_customer_id: null
   });
 
   const [appSettings, setAppSettings] = useState({
@@ -1002,18 +1002,25 @@ export default function App() {
   const isSubscriptionValid = useMemo(() => {
     const status = (profile.subscription_status || '').toLowerCase();
     
-    // 1. Se a Stripe (webhook) ou o banco definiu como expirada/cancelada, bloqueia imediatamente
-    if (status === 'expirada' || status === 'cancelada' || status === 'inativa' || status === 'past_due' || status === 'unpaid' || status === 'desativado') {
+    // 1. Bloqueios Críticos de Segurança
+    // Se o status for qualquer um destes, o bloqueio deve ser total e imediato.
+    const blacklisted = ['expirada', 'cancelada', 'inativa', 'past_due', 'unpaid', 'desativado', 'atrasada'];
+    if (blacklisted.includes(status)) return false;
+    
+    // 2. Verificação de Data de Expiração (Fallback de Segurança)
+    // Mesmo que o status diga "Ativa", se a data no banco passou de hoje, bloqueamos.
+    if (profile.subscription_expires_at) {
+      const expiry = new Date(profile.subscription_expires_at).getTime();
+      const now = Date.now();
+      if (expiry <= now) return false;
+    } else if (status !== 'ativa' && status !== 'active') {
+      // Se não há data e o status não é explicitamente Ativa/Active, bloqueamos por segurança.
       return false;
     }
     
-    // 2. Fallback de segurança local: Se a data passou, também bloqueia
-    if (profile.subscription_expires_at) {
-      const expiry = new Date(profile.subscription_expires_at).getTime();
-      if (expiry <= Date.now()) return false;
-    }
-    
-    return true; 
+    // 3. Whitelist: Só entra se for um destes estados explicitamente válidos
+    const whitelisted = ['ativa', 'active', 'trial', 'ativo'];
+    return whitelisted.includes(status);
   }, [profile.subscription_status, profile.subscription_expires_at]);
 
   if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando sistema...</div>;
