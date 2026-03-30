@@ -246,13 +246,26 @@ export default function App() {
     const appName = "AutoPrime";
     document.title = appName;
     
-    // 2. Criar Ícone SVG Personalizado (Quadrado borda laranja, A branco e P laranja)
+    // 2. Criar Ícone SVG Personalizado (Pistola de Pintura conforme imagem fornecida)
     const iconSvg = `
       <svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="8" y="8" width="176" height="176" rx="36" fill="#09090B" stroke="#EA580C" stroke-width="16"/>
-        <text x="92" y="130" font-family="sans-serif" font-weight="900" font-style="italic" font-size="90" text-anchor="middle">
-          <tspan fill="#FFFFFF">A</tspan><tspan fill="#EA580C">P</tspan>
-        </text>
+        <rect x="8" y="8" width="176" height="176" rx="36" fill="#09090B" stroke="#EA580C" stroke-width="12"/>
+        <g transform="translate(96, 100) scale(0.85)">
+          <!-- Caneca de Tinta -->
+          <path d="M-10 -45 L20 -45 L10 -85 L0 -85 Z" fill="#FFFFFF" stroke="#EA580C" stroke-width="5" stroke-linejoin="round"/>
+          <path d="M5 -45 L5 -35" stroke="#EA580C" stroke-width="8"/>
+          <!-- Corpo da Pistola -->
+          <rect x="-35" y="-35" width="80" height="25" rx="5" fill="#09090B" stroke="#EA580C" stroke-width="5"/>
+          <!-- Bico -->
+          <path d="M-35 -22.5 L-55 -22.5 M-55 -32 L-65 -32 L-65 -13 L-55 -13 Z" stroke="#EA580C" stroke-width="5" stroke-linejoin="round"/>
+          <!-- Punho -->
+          <rect x="10" y="-10" width="20" height="55" rx="6" fill="#EA580C" />
+          <path d="M10 -10 L10 45 L30 45 L30 -10 Z" stroke="#EA580C" stroke-width="3" />
+          <!-- Gatilho -->
+          <path d="M0 -10 C-10 10 -5 30 0 40" stroke="#EA580C" stroke-width="5" stroke-linecap="round"/>
+          <!-- Botão Traseiro -->
+          <circle cx="45" cy="-22.5" r="4" fill="#EA580C" />
+        </g>
       </svg>
     `.trim();
 
@@ -1003,18 +1016,15 @@ export default function App() {
     const status = (profile.subscription_status || '').toLowerCase();
     
     // 1. Bloqueios Críticos de Segurança
-    // Se o status for qualquer um destes, o bloqueio deve ser total e imediato.
     const blacklisted = ['expirada', 'cancelada', 'inativa', 'past_due', 'unpaid', 'desativado', 'atrasada'];
     if (blacklisted.includes(status)) return false;
     
     // 2. Verificação de Data de Expiração (Fallback de Segurança)
-    // Mesmo que o status diga "Ativa", se a data no banco passou de hoje, bloqueamos.
     if (profile.subscription_expires_at) {
       const expiry = new Date(profile.subscription_expires_at).getTime();
       const now = Date.now();
       if (expiry <= now) return false;
     } else if (status !== 'ativa' && status !== 'active') {
-      // Se não há data e o status não é explicitamente Ativa/Active, bloqueamos por segurança.
       return false;
     }
     
@@ -1191,7 +1201,6 @@ export default function App() {
                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
               </div>
               
-              {/* Efeitos Visuais */}
               <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-orange-600/20 blur-[100px] rounded-full pointer-events-none"></div>
               
               <div className="relative z-10 w-full p-12 lg:p-16">
@@ -1244,7 +1253,6 @@ export default function App() {
             <button onClick={() => setIsMobileMenuOpen(true)} className="text-zinc-400 p-2"><Menu size={18} /></button>
           </header>
 
-          {/* MENU MOBILE OVERLAY - CORRIGINDO VISIBILIDADE NO CELULAR */}
           {isMobileMenuOpen && (
             <div className="fixed inset-0 z-[500] md:hidden">
               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
@@ -1370,9 +1378,6 @@ export default function App() {
                          <Button variant="outline" className="opacity-0 group-hover:opacity-100 px-2 py-1.5" onClick={(e) => { e.stopPropagation(); updateWorkStatus(v.id, 'Em Produção'); }}><RotateCcw size={12}/></Button>
                       </Card>
                    ))}
-                   {historyVehiclesMemo.length === 0 && (
-                      <div className="col-span-full py-12 text-center text-zinc-800 font-black uppercase italic tracking-widest">Nenhum veículo no histórico (Excluídos após 30 dias)</div>
-                   )}
                 </div>
               </div>
             )}
@@ -1395,13 +1400,13 @@ export default function App() {
                 <div className="flex gap-2">
                   <div className="relative flex-1 group">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-orange-600 transition-colors"><Search size={14} /></div>
-                    <input type="text" placeholder="Pesquisar material ou marca..." className="bg-zinc-950 border border-zinc-800 rounded-lg w-full py-2 pl-9 pr-3 text-xs text-white outline-none focus:border-orange-600 transition-all placeholder:text-zinc-700 font-bold" value={inventorySearch} onChange={e => setInventorySearch(e.target.value)}/>
+                    <input type="text" placeholder="Pesquisar material..." className="bg-zinc-950 border border-zinc-800 rounded-lg w-full py-2 pl-9 pr-3 text-xs text-white outline-none focus:border-orange-600 transition-all placeholder:text-zinc-700 font-bold" value={inventorySearch} onChange={e => setInventorySearch(e.target.value)}/>
                   </div>
                 </div>
                 <Card className="overflow-hidden border-zinc-800">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-zinc-800 text-zinc-500 text-[9px] uppercase font-black">
-                      <tr><th className="p-4">Material</th><th className="p-4">Qtd</th><th className="p-4">Preço</th><th className="p-4">Cadastrado</th><th className="p-4 text-center">Ações</th></tr>
+                      <tr><th className="p-4">Material</th><th className="p-4">Qtd</th><th className="p-4">Preço</th><th className="p-4">Ações</th></tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-800">
                       {filteredInventory.map(item => (
@@ -1409,34 +1414,12 @@ export default function App() {
                           <td className="p-4 font-bold text-white uppercase text-xs">{item.name} <span className="text-[10px] text-zinc-600 font-normal ml-1">({item.brand})</span></td>
                           <td className="p-4 text-xs font-bold text-zinc-400">{item.quantity} un</td>
                           <td className="p-4 text-emerald-500 font-bold text-xs">R$ {Number(item.price || 0).toLocaleString('pt-BR')}</td>
-                          <td className="p-4 text-zinc-600 font-mono text-[10px]">{item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '---'}</td>
                           <td className="p-4 text-center"><button onClick={() => supabase.from('autoprime_inventory').delete().eq('id', item.id).then(() => fetchData())} className="text-zinc-700 hover:text-red-500 transition-colors"><Trash2 size={16}/></button></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </Card>
-                <div className="space-y-4 pt-4">
-                  <h3 className="text-sm font-black text-zinc-500 uppercase italic tracking-widest flex items-center gap-2"><History size={16} className="text-orange-600"/> Histórico de Uso</h3>
-                  <Card className="overflow-hidden border-zinc-800 bg-zinc-950/50">
-                    <table className="w-full text-left text-[10px]">
-                      <thead className="bg-zinc-900 text-zinc-500 uppercase font-black">
-                        <tr><th className="p-3">Item</th><th className="p-3">Qtd</th><th className="p-3">Destino (Carro)</th><th className="p-3">Por Quem</th><th className="p-3">Data</th></tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-900">
-                        {inventoryLog.map(log => (
-                          <tr key={log.id} className="hover:bg-zinc-900/20 transition-colors">
-                            <td className="p-3 font-bold text-white uppercase">{log.item_name}</td>
-                            <td className="p-3 text-orange-500 font-black">{log.quantity} un</td>
-                            <td className="p-3 text-zinc-400 font-bold uppercase">{log.vehicle_info}</td>
-                            <td className="p-3 text-zinc-500 font-bold uppercase italic">{log.professional}</td>
-                            <td className="p-3 text-zinc-600 font-mono">{new Date(log.created_at).toLocaleDateString('pt-BR')}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </Card>
-                </div>
               </div>
             )}
 
@@ -1477,9 +1460,6 @@ export default function App() {
                                <td className="p-4 text-orange-500 font-black text-xs italic">{new Date(v.polishing_date).toLocaleDateString('pt-BR')}</td>
                             </tr>
                           ))}
-                          {polishingListMemo.length === 0 && (
-                             <tr><td colSpan="3" className="p-8 text-center text-zinc-800 font-black uppercase italic tracking-widest">Nenhum polimento agendado</td></tr>
-                          )}
                        </tbody>
                     </table>
                  </Card>
@@ -1537,13 +1517,7 @@ export default function App() {
                  <Card className="overflow-hidden border-zinc-800 bg-zinc-950/50">
                     <table className="w-full text-left text-[10px]">
                       <thead className="bg-zinc-900 text-zinc-500 uppercase font-black">
-                        <tr>
-                          <th className="p-4">Cliente</th>
-                          <th className="p-4">Último Carro</th>
-                          <th className="p-4">Placa</th>
-                          <th className="p-4">Contato</th>
-                          <th className="p-4">Última Entrada</th>
-                        </tr>
+                        <tr><th className="p-4">Cliente</th><th className="p-4">Último Carro</th><th className="p-4">Placa</th><th className="p-4">Contato</th><th className="p-4">Última Entrada</th></tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-900">
                         {crmData.map((c, i) => (
@@ -1555,9 +1529,6 @@ export default function App() {
                             <td className="p-4 text-zinc-600 font-mono">{new Date(c.last_entry || Date.now()).toLocaleDateString('pt-BR')}</td>
                           </tr>
                         ))}
-                        {crmData.length === 0 && (
-                          <tr><td colSpan="5" className="p-12 text-center text-zinc-800 font-black uppercase italic tracking-widest">Nenhum cliente registrado no CRM</td></tr>
-                        )}
                       </tbody>
                     </table>
                  </Card>
@@ -1573,33 +1544,20 @@ export default function App() {
                        <div className="flex items-center gap-2 mt-2">
                           <div className={`w-2 h-2 rounded-full ${isSubscriptionValid ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                           <h3 className="text-xl font-black text-white uppercase italic">
-                             {isSubscriptionValid ? (profile.subscription_status?.toLowerCase() === 'trial' ? 'Ativo - Modo Trial' : `${profile.subscription_status || 'Ativo'} - Acesso total`) : `${profile.subscription_status || 'Desativado'} - Sem acesso`}
+                             {isSubscriptionValid ? (profile.subscription_status?.toLowerCase() === 'trial' ? 'Ativo - Modo Trial' : 'Ativo - Acesso total') : 'Desativado - Sem acesso'}
                           </h3>
                        </div>
-                       <p className="text-[10px] text-zinc-400 mt-4 uppercase font-bold">Vinculado ao e-mail:</p>
-                       <p className="text-xs text-orange-500 font-mono">{profile.email || loginForm.email}</p>
                     </Card>
-
                     <Card className="p-6 border-l-4 border-l-zinc-800">
                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Validade do Plano</p>
                        <h3 className="text-xl font-black text-white mt-2 italic">
                           {profile.subscription_expires_at ? new Date(profile.subscription_expires_at).toLocaleDateString('pt-BR') : 'Expirado'}
                        </h3>
-                       <p className="text-[9px] text-zinc-500 mt-4 leading-relaxed font-bold uppercase tracking-wider italic">
-                          {isSubscriptionValid ? 'Sua licença está válida e todas as funcionalidades estão desbloqueadas.' : 'Seu acesso foi interrompido. Regularize sua assinatura para restaurar o acesso total.'}
-                       </p>
                     </Card>
                  </div>
-                 
                  <Card className="p-8 bg-zinc-900/50 border-dashed border-zinc-800 flex flex-col items-center text-center gap-4">
                     <div className="bg-zinc-950 p-4 rounded-full text-zinc-700"><ShieldAlert size={32}/></div>
-                    <div className="max-w-sm">
-                       <h4 className="text-xs font-black text-white uppercase tracking-widest mb-1">Pagamentos e Faturas</h4>
-                       <p className="text-[10px] text-zinc-500 font-bold uppercase leading-relaxed">
-                          {isSubscriptionValid ? 'O processamento de pagamentos é feito de forma segura.' : 'Sua assinatura precisa de renovação para restaurar o acesso total.'}
-                       </p>
-                    </div>
-                    <Button variant={isSubscriptionValid ? "outline" : "primary"} className="mt-2" onClick={handleManageSubscription}>
+                    <Button variant={isSubscriptionValid ? "outline" : "primary"} onClick={handleManageSubscription}>
                        {isSubscriptionValid ? 'Gerenciar faturamento' : 'RENOVAR ASSINATURA AGORA'}
                     </Button>
                  </Card>
@@ -1610,141 +1568,12 @@ export default function App() {
               <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
                  <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Meu Perfil</h2>
                  <Card className="p-6 space-y-6 bg-zinc-900/50">
-                    <div className="flex flex-col items-center gap-4 mb-6">
-                       <div className="relative w-24 h-24 rounded-full bg-zinc-950 border-2 border-dashed border-zinc-800 flex items-center justify-center overflow-hidden hover:border-orange-600 transition-all group">
-                          {profile.profile_photo ? (
-                             <img src={profile.profile_photo} className="w-full h-full object-cover" alt="Perfil" />
-                          ) : (
-                             <User size={32} className="text-zinc-700" />
-                          )}
-                          <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                             <Camera size={20} className="text-white mb-1" />
-                             <span className="text-[8px] font-black text-white uppercase tracking-widest">Alterar</span>
-                             <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                                const file = e.target.files[0];
-                                if (file) {
-                                   const reader = new FileReader();
-                                   reader.onloadend = () => setProfile({...profile, profile_photo: reader.result});
-                                   reader.readAsDataURL(file);
-                                }
-                             }} />
-                          </label>
-                       </div>
-                    </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <Input label="Nome Completo" value={profile.owner_name} onChange={e => setProfile({...profile, owner_name: e.target.value})} icon={User} placeholder="Seu nome" />
-                       <Input label="CPF ou CNPJ" value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} icon={FileDigit} placeholder="000.000.000-00" />
-                       <Input label="Senha Atual" type="password" value="*******" readOnly icon={Lock} />
-                       <Input label="Nova Senha" type="password" placeholder="Digite para alterar" value={profile.new_password || ""} onChange={e => setProfile({...profile, new_password: e.target.value})} icon={Lock} />
+                       <Input label="Nome Completo" value={profile.owner_name} onChange={e => setProfile({...profile, owner_name: e.target.value})} icon={User} />
+                       <Input label="CPF ou CNPJ" value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} icon={FileDigit} />
                     </div>
-                    
-                    <Button onClick={async () => {
-                       const { new_password, ...profileDataToSave } = profile;
-                       
-                       // Salva os dados do perfil (incluindo a foto base64)
-                       await supabase.from('autoprime_profile').upsert({ tenant_id: currentTenantId, ...profileDataToSave });
-                       
-                       // Se o utilizador digitou uma nova senha, atualiza na tabela de admins
-                       if (new_password) {
-                          const { error } = await supabase.from('autoprime_admins').update({ password: new_password }).eq('tenant_id', currentTenantId);
-                          if (error) {
-                             showNotification("Erro ao alterar senha", "danger");
-                             return;
-                          }
-                          setProfile({...profile, new_password: ""}); // limpa o campo
-                       }
-                       showNotification("Perfil atualizado com sucesso!");
-                    }} className="w-full py-3"><Save size={16}/> Guardar Meu Perfil</Button>
+                    <Button onClick={() => supabase.from('autoprime_profile').upsert({ tenant_id: currentTenantId, ...profile }).then(() => showNotification("Perfil Guardado!"))} className="w-full py-3"><Save size={16}/> Guardar Meu Perfil</Button>
                  </Card>
-              </div>
-            )}
-
-            {activeTab === 'about' && (
-              <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in">
-                 <div className="text-center space-y-4 mb-8">
-                    <h2 className="text-3xl font-black text-white uppercase italic tracking-tight">Guia de <span className="text-orange-600">Uso da Plataforma</span></h2>
-                    <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest max-w-2xl mx-auto">Aprenda passo a passo como utilizar as principais ferramentas do seu sistema.</p>
-                 </div>
-
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Guia 1 */}
-                    <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
-                       <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
-                          <div className="absolute inset-0 bg-gradient-to-br from-orange-600/5 to-transparent"></div>
-                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10">
-                             <div className="flex justify-between items-center mb-4">
-                                <span className="text-sm font-black text-white uppercase italic">Painel</span>
-                                <div className="bg-orange-600 text-white px-3 py-1.5 rounded-lg font-bold text-[8px] uppercase flex items-center gap-1 shadow-md"><Plus size={12}/> Nova Entrada</div>
-                             </div>
-                             <div className="grid grid-cols-2 gap-2">
-                                <div className="h-10 bg-zinc-900 border border-zinc-800 rounded-lg"></div>
-                                <div className="h-10 bg-zinc-900 border border-zinc-800 rounded-lg"></div>
-                             </div>
-                          </div>
-                       </div>
-                       <div className="p-6 space-y-3">
-                          <h3 className="text-lg font-black text-white uppercase italic flex items-center gap-2"><LayoutDashboard className="text-orange-500" size={18}/> 1. Cadastrar Veículo</h3>
-                          <p className="text-zinc-400 text-xs font-bold leading-relaxed">No menu <b>Painel</b>, clique no botão laranja <b>"Nova Entrada"</b> no canto superior direito. Preencha a ficha do cliente, serviços e tire fotos para a vistoria. O veículo entrará na fila imediatamente.</p>
-                       </div>
-                    </Card>
-
-                    {/* Guia 2 */}
-                    <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
-                       <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
-                          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent"></div>
-                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
-                             <p className="text-[7px] font-black text-zinc-400 uppercase flex items-center gap-1 italic"><BoxSelect size={10} className="text-blue-500"/> Materiais Aplicados</p>
-                             <div className="flex gap-2">
-                                <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-2 text-[8px] text-zinc-500 font-bold">Verniz PU</div>
-                                <div className="w-10 bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-2 text-[8px] text-white font-bold text-center">1</div>
-                                <div className="bg-zinc-800 text-zinc-300 font-black text-[7px] uppercase px-3 py-2 rounded-lg border border-zinc-700 leading-tight text-center">Debitar e<br/>Lançar</div>
-                             </div>
-                          </div>
-                       </div>
-                       <div className="p-6 space-y-3">
-                          <h3 className="text-lg font-black text-white uppercase italic flex items-center gap-2"><Package className="text-orange-500" size={18}/> 2. Debitar Estoque</h3>
-                          <p className="text-zinc-400 text-xs font-bold leading-relaxed">Na ficha técnica de um veículo, desça até <b>Materiais Aplicados</b>. Escolha o produto gasto, a quantidade e clique em lançar. O custo abate no lucro e o estoque diminui automaticamente.</p>
-                       </div>
-                    </Card>
-
-                    {/* Guia 3 */}
-                    <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
-                       <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
-                          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 to-transparent"></div>
-                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
-                             <p className="text-[7px] font-black text-orange-600 uppercase flex items-center gap-1 italic"><Share2 size={10}/> Link de Acompanhamento</p>
-                             <div className="flex gap-2 bg-zinc-900 p-2 rounded-lg border border-zinc-800">
-                                <div className="flex-1 bg-transparent px-2 text-[8px] text-zinc-500 font-mono py-1">autoprime.app/?v=123</div>
-                                <div className="bg-emerald-600 px-3 py-1.5 rounded-md text-white flex items-center gap-1"><MessageCircle size={10}/> <span className="text-[7px] font-black uppercase">Enviar</span></div>
-                             </div>
-                          </div>
-                       </div>
-                       <div className="p-6 space-y-3">
-                          <h3 className="text-lg font-black text-white uppercase italic flex items-center gap-2"><MessageCircle className="text-orange-500" size={18}/> 3. Enviar Status ao Vivo</h3>
-                          <p className="text-zinc-400 text-xs font-bold leading-relaxed">Dentro da ficha do veículo, localize a secção <b>Link de Acompanhamento</b>. Clique em <b>Enviar</b> para abrir o WhatsApp e enviar o portal privado ao cliente.</p>
-                       </div>
-                    </Card>
-
-                    {/* Guia 4 */}
-                    <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
-                       <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
-                          <div className="absolute inset-0 bg-gradient-to-br from-zinc-600/5 to-transparent"></div>
-                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
-                             <p className="text-[9px] font-black text-white uppercase italic">Orçamentos PDF</p>
-                             <div className="grid grid-cols-2 gap-2">
-                                <div className="h-8 bg-zinc-900 border border-zinc-800 rounded-lg"></div>
-                                <div className="h-8 bg-zinc-900 border border-zinc-800 rounded-lg"></div>
-                             </div>
-                             <div className="h-10 w-full bg-orange-600 rounded-lg text-white flex items-center justify-center gap-1 mt-2"><Download size={12}/> <span className="text-[8px] font-black uppercase tracking-widest">Gerar Orçamento (PDF)</span></div>
-                          </div>
-                       </div>
-                       <div className="p-6 space-y-3">
-                          <h3 className="text-lg font-black text-white uppercase italic flex items-center gap-2"><FileText className="text-orange-500" size={18}/> 4. Gerar Orçamentos</h3>
-                          <p className="text-zinc-400 text-xs font-bold leading-relaxed">Clique no menu <b>Orçamentos</b>. Digite os dados do carro e as avarias. O botão inferior gerará imediatamente um documento PDF oficial pronto para ser impresso ou enviado.</p>
-                       </div>
-                    </Card>
-                 </div>
               </div>
             )}
           </main>
@@ -1754,128 +1583,41 @@ export default function App() {
               <Card className="w-full max-w-4xl p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl my-4 md:my-8 h-auto">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all z-10"><X size={20}/></button>
                 <form onSubmit={handleAddVehicle} className="space-y-8">
-                   <h2 className="text-lg font-black text-white uppercase italic border-b border-zinc-900 pb-4 tracking-tighter">Vistoria de Entrada Completa</h2>
-                   
+                   <h2 className="text-lg font-black text-white uppercase italic border-b border-zinc-900 pb-4 tracking-tighter">Vistoria de Entrada</h2>
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-4">
-                         <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic">Dados do Cliente</p>
                          <Input label="Cliente" value={newVehicle.customerName} onChange={e => setNewVehicle({...newVehicle, customerName: e.target.value})} required />
                          <Input label="Contacto" value={newVehicle.phone} onChange={e => setNewVehicle({...newVehicle, phone: e.target.value})} required />
-                         <div className="flex flex-col gap-1">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">Horário de Entrada</label>
-                            <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white font-mono flex items-center gap-2">
-                               <Clock size={12} className="text-orange-600"/> {new Date().toLocaleTimeString('pt-BR')}
-                            </div>
-                         </div>
                       </div>
                       <div className="space-y-4">
-                         <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic">Dados do Veículo</p>
                          <Input label="Marca" value={newVehicle.brand} onChange={e => setNewVehicle({...newVehicle, brand: e.target.value})} required />
                          <Input label="Modelo" value={newVehicle.model} onChange={e => setNewVehicle({...newVehicle, model: e.target.value})} required />
                          <Input label="Placa" value={newVehicle.licensePlate} onChange={e => setNewVehicle({...newVehicle, licensePlate: e.target.value.toUpperCase()})} required />
-                         <Input label="Cor" value={newVehicle.color} onChange={e => setNewVehicle({...newVehicle, color: e.target.value})} required />
                       </div>
                       <div className="space-y-4">
-                         <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic">Configurações Técnicas</p>
-                         <div className="flex flex-col gap-1">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">Tipo do Veículo</label>
-                            <select 
-                               className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-orange-600 transition-all"
-                               value={newVehicle.type} 
-                               onChange={e => setNewVehicle({...newVehicle, type: e.target.value})}
-                            >
-                               <option value="Sedan">Sedan</option>
-                               <option value="hatch">hatch</option>
-                               <option value="SUV">SUV</option>
-                               <option value="Picape">Picape</option>
-                               <option value="Moto">Moto</option>
-                               <option value="Van/Utilitários">Van/Utilitários</option>
-                            </select>
-                         </div>
-                         <div className="flex flex-col gap-1">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">Localização (BOX)</label>
-                            <select 
-                               className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-orange-600 transition-all"
-                               value={newVehicle.location} 
-                               onChange={e => setNewVehicle({...newVehicle, location: e.target.value})}
-                            >
-                               {["BOX 01", "BOX 02", "BOX 03", "BOX 04", "BOX 05", "BOX 06", "BOX 07", "BOX 08", "BOX 09", "BOX 10"]
-                                 .filter(box => !activeVehiclesMemo.some(v => v.location === box))
-                                 .map(box => (
-                                   <option key={box} value={box}>{box}</option>
-                               ))}
-                            </select>
-                         </div>
-                         <Input label="Técnico Responsável" value={newVehicle.professional} onChange={e => setNewVehicle({...newVehicle, professional: e.target.value})} />
+                         <Input label="Cor" value={newVehicle.color} onChange={e => setNewVehicle({...newVehicle, color: e.target.value})} required />
                          <Input label="Valor Cobrado (R$)" value={newVehicle.price} onChange={e => setNewVehicle({...newVehicle, price: e.target.value})} required />
                       </div>
                    </div>
-
-                   <div className="space-y-4 p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic flex items-center gap-2"><Wrench size={14}/> Serviço Solicitado</p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                         {serviceOptions.map(service => (
-                           <button 
-                             key={service} 
-                             type="button"
-                             onClick={() => {
-                               const current = newVehicle.selectedServices || [];
-                               let next;
-                               if (current.includes(service)) {
-                                 next = current.filter(s => s !== service);
-                               } else {
-                                 if (service === "Pintura completa") {
-                                   next = [...serviceOptions];
-                                 } else {
-                                   next = [...current, service];
-                                 }
-                               }
-                               setNewVehicle({...newVehicle, selectedServices: next});
-                             }}
-                             className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase text-left transition-all border ${newVehicle.selectedServices?.includes(service) ? 'bg-orange-600 border-orange-600 text-black italic shadow-lg shadow-orange-600/20' : 'bg-zinc-950 border-zinc-900 text-zinc-600 hover:text-white'}`}
-                           >
-                             {service}
-                           </button>
-                         ))}
-                      </div>
-                      <div className="space-y-2">
-                         <div className="flex gap-2 items-end">
-                            <Input label="Outro Serviço ou Peça Específica" placeholder="Descreva aqui..." value={newVehicle.customPieceText} onChange={e => setNewVehicle({...newVehicle, customPieceText: e.target.value})} />
-                            <Button onClick={() => { if(newVehicle.customPieceText.trim()){ setNewVehicle(prev => ({ ...prev, customServicesList: [...(prev.customServicesList || []), prev.customPieceText.trim()], customPieceText: "" })); } }} className="h-9 mb-0.5 px-6">Inserir</Button>
-                         </div>
-                         <div className="flex flex-wrap gap-2">
-                            {newVehicle.customServicesList?.map((s, i) => (
-                               <div key={i} className="bg-zinc-800 text-zinc-300 border border-zinc-700 px-3 py-1 rounded-lg text-[8px] font-black uppercase flex items-center gap-2 animate-in fade-in">
-                                  {s} <button type="button" onClick={() => setNewVehicle(prev => ({ ...prev, customServicesList: prev.customServicesList.filter((_, idx) => idx !== i) }))} className="text-zinc-500 hover:text-red-500 transition-colors"><X size={10}/></button>
-                               </div>
-                            ))}
-                         </div>
-                      </div>
-                   </div>
-
                    <div className="space-y-4">
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic flex items-center gap-2"><Camera size={14}/> Seleção de Fotos (Vistoria)</p>
+                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic flex items-center gap-2"><Camera size={14}/> Fotos (Vistoria)</p>
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                         {['Quilometragem', 'Frente', 'Trás', 'Lado D', 'Lado E', 'Teto'].map(pos => (
-                           <div key={pos} className={`relative aspect-square bg-zinc-950 border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden hover:border-orange-600 transition-all group ${pos === 'Quilometragem' ? (newVehicle.photos?.['Quilometragem'] ? 'border-zinc-800' : 'border-red-600/50 bg-red-600/5') : 'border-zinc-800'}`}>
+                         {['Quilometragem', 'Frente', 'Trás', 'Lado D', 'Lado E'].map(pos => (
+                           <div key={pos} className="relative aspect-square bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-xl flex items-center justify-center overflow-hidden hover:border-orange-600 transition-all group">
                               {newVehicle.photos?.[pos] ? (
-                                <>
-                                  <img src={newVehicle.photos[pos]} className="w-full h-full object-cover" alt={pos} />
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); setNewVehicle(prev => ({ ...prev, photos: { ...prev.photos, [pos]: null } })); }} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={20} className="text-red-500" /></button>
-                                </>
+                                <img src={newVehicle.photos[pos]} className="w-full h-full object-cover" alt={pos} />
                               ) : (
                                 <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center gap-2">
                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(pos, e)} />
-                                   {pos === 'Quilometragem' ? <Gauge size={20} className="text-red-600" /> : <Camera size={20} className="text-zinc-800" />}
-                                   <span className={`text-[7px] font-black uppercase tracking-widest ${pos === 'Quilometragem' ? 'text-red-500' : 'text-zinc-800'}`}>{pos} {pos === 'Quilometragem' && '*'}</span>
+                                   <Camera size={20} className="text-zinc-800" />
+                                   <span className="text-[7px] font-black uppercase text-zinc-800">{pos}</span>
                                 </label>
                               )}
                            </div>
                          ))}
                       </div>
                    </div>
-
-                   <Button type="submit" className="w-full py-4 tracking-[0.3em] italic font-black text-sm uppercase">REGISTRAR ENTRADA</Button>
+                   <Button type="submit" className="w-full py-4 tracking-[0.3em] font-black text-sm uppercase">REGISTRAR ENTRADA</Button>
                 </form>
               </Card>
             </div>
@@ -1884,359 +1626,69 @@ export default function App() {
           {viewingVehicle && (
             <div className="fixed inset-0 bg-black/98 z-[200] flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
               <Card className="w-full max-w-6xl bg-[#0a0a0a] border-none rounded-[24px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-                {/* Header Estilizado conforme a imagem */}
                 <div className="bg-orange-600 p-6 flex justify-between items-start text-black">
                     <div>
-                        <h2 className="text-2xl font-black uppercase italic leading-none tracking-tighter">FICHA TÉCNICA DO VEÍCULO</h2>
-                        <p className="font-black uppercase text-[10px] tracking-widest mt-2 opacity-80 italic">Controlo de Ativos • AutoPrime Professional</p>
+                        <h2 className="text-2xl font-black uppercase italic leading-none tracking-tighter">FICHA TÉCNICA</h2>
                     </div>
-                    <button onClick={() => setViewingVehicle(null)} className="bg-black/10 hover:bg-black/20 p-2 rounded-full text-black transition-all active:scale-90 shadow-lg">
-                      <X size={20} strokeWidth={3} />
+                    <button onClick={() => setViewingVehicle(null)} className="bg-black/10 hover:bg-black/20 p-2 rounded-full text-black transition-all">
+                      <X size={20} />
                     </button>
                 </div>
-
                 <div className="p-6 md:p-8 grid lg:grid-cols-2 gap-8 overflow-y-auto no-scrollbar max-h-[85vh]">
-                   {/* Coluna Esquerda: Dados e Ações */}
                    <div className="space-y-6">
-                      
-                      {/* Grid de Informações 3x3 */}
                       <div className="grid grid-cols-3 gap-3">
                          {[
-                            { label: "DONO / CLIENTE", value: viewingVehicle.customer_name },
-                            { label: "TELEMÓVEL", value: viewingVehicle.phone },
-                            { label: "MARCA / MODELO", value: `${viewingVehicle.brand} ${viewingVehicle.model}` },
+                            { label: "CLIENTE", value: viewingVehicle.customer_name },
+                            { label: "TELEFONE", value: viewingVehicle.phone },
+                            { label: "VEÍCULO", value: `${viewingVehicle.brand} ${viewingVehicle.model}` },
                             { label: "PLACA", value: viewingVehicle.license_plate, highlight: true },
                             { label: "COR", value: viewingVehicle.color },
-                            { label: "BOX", value: viewingVehicle.location },
-                            { label: "TÉCNICO", value: viewingVehicle.professional || "Não Atribuído" },
-                            { label: "TIPO", value: viewingVehicle.vehicle_type || "Normal" },
-                            { label: "ENTRADA", value: viewingVehicle.entry_time?.split(',')[0] || "---" }
+                            { label: "BOX", value: viewingVehicle.location }
                          ].map((item, idx) => (
                            <div key={idx} className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-xl">
                               <p className="text-[7px] font-black text-zinc-500 uppercase italic tracking-widest mb-1 leading-none">{item.label}</p>
-                              {item.label === "BOX" ? (
-                                <select 
-                                  className="bg-transparent font-bold uppercase text-[10px] text-orange-500 outline-none w-full appearance-none cursor-pointer"
-                                  value={viewingVehicle.location}
-                                  onChange={async (e) => {
-                                    const val = e.target.value;
-                                    const { error } = await supabase.from('autoprime_vehicles').update({ location: val }).eq('id', viewingVehicle.id);
-                                    if (!error) {
-                                      setViewingVehicle(prev => ({ ...prev, location: val }));
-                                      setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, location: val } : v));
-                                      showNotification("Box atualizado!");
-                                    }
-                                  }}
-                                >
-                                  {["BOX 01", "BOX 02", "BOX 03", "BOX 04", "BOX 05", "BOX 06", "BOX 07", "BOX 08", "BOX 09", "BOX 10"]
-                                    .filter(b => b === viewingVehicle.location || !activeVehiclesMemo.some(v => v.location === b))
-                                    .map(b => (
-                                      <option key={b} value={b} className="bg-zinc-900 text-white">{b}</option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <p className={`font-bold uppercase text-[10px] truncate ${item.highlight ? 'text-orange-500 italic' : 'text-zinc-200'}`}>
-                                  {item.value}
-                                </p>
-                              )}
+                              <p className={`font-bold uppercase text-[10px] truncate ${item.highlight ? 'text-orange-500 italic' : 'text-zinc-200'}`}>{item.value}</p>
                            </div>
                          ))}
                       </div>
-
-                      {/* Seção: Data de Agendamento - REFORÇADO VISUALMENTE */}
-                      <div className="p-6 bg-zinc-900 border-2 border-orange-600/50 rounded-3xl shadow-2xl shadow-orange-600/10 space-y-4">
-                          <p className="text-[11px] font-black text-orange-500 uppercase tracking-[0.2em] flex items-center gap-2 italic leading-none">
-                            <Calendar size={18} className="text-orange-600 animate-pulse"/> AGENDAMENTO DO VEÍCULO
-                          </p>
-                          <div className="flex gap-3">
-                             <input 
-                               type="date" 
-                               className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-5 py-3 text-white text-[12px] font-black outline-none focus:border-orange-500 transition-all shadow-inner"
-                               value={viewingVehicle.scheduled_date || ""}
-                               onChange={(e) => setViewingVehicle(prev => ({ ...prev, scheduled_date: e.target.value }))}
-                             />
-                             <div className="flex flex-col gap-2">
-                               <button 
-                                 onClick={async () => {
-                                   if (!viewingVehicle.scheduled_date) return showNotification("Selecione uma data", "danger");
-                                   const upd = { 
-                                      work_status: 'Agendados', 
-                                      status: 'active', 
-                                      current_stage: null, 
-                                      scheduled_date: viewingVehicle.scheduled_date 
-                                   };
-                                   const { error } = await supabase.from('autoprime_vehicles').update(upd).eq('id', viewingVehicle.id);
-                                   if (!error) {
-                                     setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, ...upd } : v));
-                                     setViewingVehicle(prev => ({ ...prev, ...upd }));
-                                     showNotification("Agendamento gravado!");
-                                   } else {
-                                     console.error(error);
-                                     showNotification("Erro ao salvar agendamento!", "danger");
-                                   }
-                                 }}
-                                 className="bg-orange-600 hover:bg-orange-700 text-black px-6 py-2.5 rounded-xl text-[10px] font-black uppercase italic transition-all active:scale-95 whitespace-nowrap shadow-lg shadow-orange-600/30 flex items-center gap-2"
-                               >
-                                 <Save size={14}/> Gravar
-                               </button>
-                               {viewingVehicle.scheduled_date && (
-                                 <button 
-                                   onClick={async () => {
-                                     const upd = { work_status: 'Registrado', scheduled_date: null };
-                                     const { error = null } = await supabase.from('autoprime_vehicles').update(upd).eq('id', viewingVehicle.id);
-                                     if (!error) {
-                                       setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, ...upd } : v));
-                                       setViewingVehicle(prev => ({ ...prev, ...upd }));
-                                       showNotification("Agendamento cancelado!");
-                                     }
-                                   }}
-                                   className="text-zinc-600 hover:text-red-500 text-[8px] font-black uppercase tracking-widest transition-all text-center leading-none"
-                                 >
-                                   Cancelar Agenda
-                                 </button>
-                               )}
-                             </div>
-                          </div>
-                      </div>
-
-                      {/* Seção: Materiais Aplicados */}
                       <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-4">
-                         <p className="text-[9px] font-black text-zinc-400 uppercase flex items-center gap-2 italic tracking-widest">
-                           <BoxSelect size={14} className="text-blue-500"/> MATERIAIS APLICADOS (DEBITAR STOCK)
-                         </p>
-                         <form onSubmit={handleDebitMaterial} className="flex gap-3">
-                            <select className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-[10px] font-bold outline-none focus:border-blue-500 appearance-none" value={debitForm.inventoryId} onChange={e => setDebitForm({...debitForm, inventoryId: e.target.value})}>
-                               <option value="">Selecionar Item...</option>
-                               {inventory.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-                            </select>
-                            <input type="number" min="1" className="w-20 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-[10px] font-bold text-center" value={debitForm.quantity} onChange={e => setDebitForm({...debitForm, quantity: Number(e.target.value)})}/>
-                            <button type="submit" className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black text-[9px] uppercase px-6 py-2.5 rounded-xl border border-zinc-700 transition-all active:scale-95 leading-tight">
-                              DEBITAR E <br/> LANÇAR
-                            </button>
-                         </form>
-                      </div>
-
-                      {/* Seção: Histórico de Consumo (ESTADO: ADICIONADO/CONFERIDO) */}
-                      <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
-                          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 italic leading-none">
-                            <History size={14} className="text-blue-400"/> HISTÓRICO DE CONSUMO (ESTOQUE)
-                          </p>
-                          <div className="space-y-2">
-                             {vehicleInventoryLogs.length > 0 ? vehicleInventoryLogs.map((log) => (
-                               <div key={log.id} className="bg-black/40 p-3 rounded-xl border border-zinc-900/50 flex justify-between items-center">
-                                  <div className="flex flex-col">
-                                     <span className="text-[9px] font-black text-zinc-300 uppercase tracking-wide">{log.item_name}</span>
-                                     <span className="text-[7px] text-zinc-600 font-bold uppercase">{new Date(log.created_at).toLocaleDateString('pt-BR')}</span>
-                                  </div>
-                                  <span className="text-[10px] font-black text-blue-500 italic">-{log.quantity} un</span>
-                               </div>
-                             )) : (
-                               <p className="text-[8px] text-zinc-700 font-black uppercase italic py-2 text-center tracking-widest">Nenhum registro de material</p>
-                             )}
-                          </div>
-                      </div>
-
-                      {/* Seção: Serviços Solicitados (ESTADO: ADICIONADO) */}
-                      <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
-                          <div className="flex justify-between items-center">
-                              <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 italic leading-none">
-                                <ClipboardList size={14} className="text-zinc-500"/> SERVIÇOS SOLICITADOS
-                              </p>
-                              <button 
-                                onClick={async () => {
-                                  const extra = window.prompt("Incluir novo serviço na ficha:");
-                                  if (extra && viewingVehicle) {
-                                    const newDesc = viewingVehicle.service_description ? `${viewingVehicle.service_description}, ${extra}` : extra;
-                                    await supabase.from('autoprime_vehicles').update({ service_description: newDesc }).eq('id', viewingVehicle.id);
-                                    setViewingVehicle(prev => ({ ...prev, service_description: newDesc }));
-                                    setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, service_description: newDesc } : v));
-                                    showNotification("Serviço adicionado com sucesso!");
-                                  }
-                                }}
-                                className="p-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-all border border-zinc-700"
-                              >
-                                <Plus size={12}/>
-                              </button>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                             {viewingVehicle.service_description ? viewingVehicle.service_description.split(',').map((serv, i) => (
-                               <div key={i} className="bg-zinc-950 border border-zinc-800 px-4 py-2 rounded-xl text-[9px] font-black text-zinc-400 uppercase tracking-tight flex items-center gap-2">
-                                  <Check size={12} className="text-orange-600" strokeWidth={4}/> {serv.trim()}
-                               </div>
-                             )) : (
-                               <span className="text-[8px] text-zinc-700 font-black uppercase italic tracking-widest">Nenhum serviço registrado</span>
-                             )}
-                          </div>
-                      </div>
-
-                      {/* Seção: Link de Acompanhamento (ESTADO: ADICIONADO) */}
-                      <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
-                          <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none">
-                            <Share2 size={14}/> LINK DE ACOMPANHAMENTO (WHATSAPP)
-                          </p>
-                          <div className="flex gap-2 bg-black/40 p-2 rounded-xl border border-zinc-800">
-                             <input readOnly className="bg-transparent flex-1 px-3 text-[10px] text-zinc-500 font-mono outline-none truncate" value={`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`}/>
-                             <div className="flex gap-1.5">
-                                <button onClick={() => copyToClipboard(`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`)} className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-zinc-300 transition-all flex items-center gap-2 border border-zinc-700">
-                                   <Copy size={14}/> <span className="text-[9px] font-black uppercase italic tracking-wider">Copiar</span>
-                                </button>
-                                <button onClick={() => sendWhatsAppLink(viewingVehicle)} className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-white transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20">
-                                   <MessageCircle size={14}/> <span className="text-[9px] font-black uppercase italic tracking-wider whitespace-nowrap">Enviar</span>
-                                </button>
-                             </div>
-                          </div>
-                      </div>
-
-                      {/* Seção: Status Geral do Veículo */}
-                      <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-4">
-                         <p className="text-[9px] font-black text-zinc-400 uppercase flex items-center gap-2 italic tracking-widest leading-none">
-                           <Activity size={14} className="text-orange-600"/> STATUS GERAL DO VEÍCULO
-                         </p>
-                         <div className="flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+                         <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none"><Activity size={14}/> STATUS GERAL</p>
+                         <div className="flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto no-scrollbar">
                             {['Registrado', 'Agendados', 'Em Produção', 'Concluído'].map(st => (
                                <button 
                                  key={st} 
                                  onClick={() => updateWorkStatus(viewingVehicle.id, st)} 
-                                 className={`whitespace-nowrap px-4 py-2 rounded-md text-[8px] font-black uppercase transition-all flex-shrink-0 ${viewingVehicle.work_status === st ? 'bg-orange-600 text-black italic' : 'text-zinc-600 hover:text-white hover:bg-zinc-900'}`}
+                                 className={`whitespace-nowrap px-4 py-2 rounded-md text-[8px] font-black uppercase transition-all ${viewingVehicle.work_status === st ? 'bg-orange-600 text-black' : 'text-zinc-600 hover:text-white'}`}
                                >
                                   {st}
                                </button>
                             ))}
                          </div>
                       </div>
-
-                      {/* Seção: Produção em Estufa */}
                       <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-4">
-                         <p className="text-[9px] font-black text-zinc-400 uppercase flex items-center gap-2 italic tracking-widest leading-none">
-                           <Layers size={14} className="text-orange-600"/> PRODUÇÃO EM ESTUFA (ETAPAS)
-                         </p>
+                         <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none"><Layers size={14}/> ETAPA DE PRODUÇÃO</p>
                          <div className="grid grid-cols-5 gap-2">
                             {['Funilaria', 'Preparação', 'Pintura', 'Polimento', 'Finalizado'].map(stage => (
                                <button 
                                  key={stage} 
                                  onClick={() => updateVehicleStage(viewingVehicle.id, stage)} 
-                                 className={`px-1 py-3 rounded-xl text-[8px] font-black uppercase transition-all border ${viewingVehicle.current_stage === stage ? 'bg-orange-600 border-orange-600 text-black italic shadow-lg shadow-orange-600/30' : 'bg-black/50 border-zinc-800 text-zinc-600 hover:text-zinc-400'}`}
+                                 className={`px-1 py-3 rounded-xl text-[8px] font-black uppercase transition-all border ${viewingVehicle.current_stage === stage ? 'bg-orange-600 border-orange-600 text-black' : 'bg-black/50 border-zinc-800 text-zinc-600'}`}
                                >
                                   {stage}
                                </button>
                             ))}
                          </div>
                       </div>
-
-                      {/* Seção Final: Valores (ESTADO: ADICIONADO/CONFERIDO CUSTO MATERIAL) */}
-                      <div className="grid grid-cols-2 gap-4">
-                         <div className="p-5 bg-emerald-600/5 border border-emerald-500/20 rounded-2xl flex flex-col gap-3">
-                            <div>
-                              <p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest italic leading-none">Preço Orçado</p>
-                              <p className="text-emerald-500 font-black text-2xl italic tracking-tighter leading-none mt-1">
-                                R$ {Number(viewingVehicle.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </p>
-                            </div>
-                         </div>
-                         <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col">
-                            <p className="text-[8px] text-zinc-600 font-black mb-1 uppercase tracking-widest italic leading-none">Custo Material</p>
-                            <p className="text-zinc-200 font-bold text-xl italic tracking-tighter mt-1">
-                              R$ {Number(viewingVehicle.cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </p>
-                         </div>
-                      </div>
                    </div>
-
-                   {/* Coluna Direita: Fotos - AJUSTADO PARA ROLAGEM MOBILE */}
-                   <div className="flex md:grid overflow-x-auto md:overflow-x-visible md:grid-cols-2 gap-4 h-fit md:sticky md:top-0 pb-6 md:pb-0 no-scrollbar snap-x snap-mandatory overscroll-x-contain">
-                      {/* Galeria de Fotos */}
+                   <div className="flex md:grid overflow-x-auto md:grid-cols-2 gap-4 h-fit md:sticky md:top-0 pb-6 md:pb-0 no-scrollbar snap-x snap-mandatory">
                       {Object.keys(viewingVehicle.photos || {}).map((key, idx) => (
-                        <div key={idx} className={`bg-zinc-900 rounded-[20px] overflow-hidden relative border border-zinc-800 shadow-2xl transition-all hover:border-orange-600/30 group flex-shrink-0 snap-center ${idx === 4 ? 'w-[85vw] md:w-full md:col-span-2 aspect-[21/9]' : 'w-[75vw] md:w-full aspect-square'}`}>
-                          {viewingVehicle.photos[key] ? (
-                            <img src={viewingVehicle.photos[key]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={key} />
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-zinc-800 gap-2">
-                               <ImageIcon size={32} className="opacity-10" />
-                               <span className="text-[8px] font-black uppercase tracking-[0.2em] italic">SEM FOTO: {key}</span>
-                            </div>
-                          )}
-                          <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-zinc-800 shadow-lg">
-                            <span className="text-[8px] font-black text-white uppercase tracking-widest italic">{key}</span>
-                          </div>
+                        <div key={idx} className="bg-zinc-900 rounded-[20px] overflow-hidden relative border border-zinc-800 shadow-2xl flex-shrink-0 snap-center w-[75vw] md:w-full aspect-square">
+                          {viewingVehicle.photos[key] && <img src={viewingVehicle.photos[key]} className="w-full h-full object-cover" alt={key} />}
+                          <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-zinc-800"><span className="text-[8px] font-black text-white uppercase italic">{key}</span></div>
                         </div>
                       ))}
-
-                      {/* Botão Adicionar Mais Fotos na Ficha Técnica */}
-                      <div className="w-[75vw] md:w-full aspect-square bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-[20px] flex items-center justify-center hover:border-orange-600 transition-all flex-shrink-0 snap-center">
-                         <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center gap-3">
-                            <input type="file" accept="image/*" className="hidden" onChange={handleUpdateVehiclePhotos} />
-                            <div className="p-4 bg-zinc-900 rounded-full text-orange-600">
-                                <Plus size={24} />
-                            </div>
-                            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest italic">Adicionar Foto</span>
-                         </label>
-                      </div>
                    </div>
                 </div>
-              </Card>
-            </div>
-          )}
-
-          {/* MODAL DE ESTOQUE */}
-          {isInventoryModalOpen && (
-            <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[300] flex items-center justify-center p-4">
-              <Card className="w-full max-w-md p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                <button 
-                  type="button"
-                  onClick={() => setIsInventoryModalOpen(false)} 
-                  className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all"
-                >
-                  <X size={20}/>
-                </button>
-                <form onSubmit={handleAddItem} className="space-y-6">
-                   <div className="flex items-center gap-3 mb-2">
-                      <div className="bg-blue-600/20 p-2 rounded-lg text-blue-500">
-                         <Package size={20}/>
-                      </div>
-                      <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Cadastrar Novo Item</h2>
-                   </div>
-                   
-                   <div className="space-y-4">
-                      <Input 
-                        label="Nome do Material" 
-                        placeholder="Ex: Verniz PU, Lixa 600..." 
-                        value={newItem.name} 
-                        onChange={e => setNewItem({...newItem, name: e.target.value})} 
-                        required 
-                      />
-                      <Input 
-                        label="Marca / Fabricante" 
-                        placeholder="Ex: 3M, Norton..." 
-                        value={newItem.brand} 
-                        onChange={e => setNewItem({...newItem, brand: e.target.value})} 
-                        required 
-                      />
-                      <div className="grid grid-cols-2 gap-4">
-                         <Input 
-                           label="Quantidade Inicial" 
-                           type="number" 
-                           placeholder="0" 
-                           value={newItem.quantity} 
-                           onChange={e => setNewItem({...newItem, quantity: e.target.value})} 
-                           required 
-                         />
-                         <Input 
-                           label="Preço Unitário (R$)" 
-                           type="number" 
-                           step="0.01" 
-                           placeholder="0,00" 
-                           value={newItem.price} 
-                           onChange={e => setNewItem({...newItem, price: e.target.value})} 
-                           required 
-                         />
-                      </div>
-                   </div>
-
-                   <div className="flex gap-3 pt-2">
-                      <Button variant="outline" className="flex-1" onClick={() => setIsInventoryModalOpen(false)}>Cancelar</Button>
-                      <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700">Adicionar Item</Button>
-                   </div>
-                </form>
               </Card>
             </div>
           )}
