@@ -206,7 +206,7 @@ export default function App() {
   
   const [newVehicle, setNewVehicle] = useState({
     customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Sedan", 
-    color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação",
+    color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Registrado",
     selectedServices: [], customPieceText: "", customServicesList: [], photos: {} 
   });
 
@@ -275,7 +275,6 @@ export default function App() {
     setMeta("description", "Gestão profissional de estética e pintura automóvel.");
 
     // 4. Converter SVG para PNG via Canvas para compatibilidade Mobile (iOS/Android)
-    // Sistemas móveis (especialmente iOS) ignoram SVGs para ícones de atalho. É necessário PNG.
     const canvas = document.createElement('canvas');
     canvas.width = 192;
     canvas.height = 192;
@@ -301,11 +300,11 @@ export default function App() {
       setIcon('shortcut icon', pngUrl);
       setIcon('apple-touch-icon', pngUrl, '192x192');
 
-      // 5. Gerar Manifest dinâmico para Android (Garante o funcionamento do "Adicionar à Tela Principal")
+      // 5. Gerar Manifest dinâmico com start_url corrigido (Uso de URL absoluta para evitar erro de validação)
       const manifest = {
          name: "AutoPrime",
          short_name: "AutoPrime",
-         start_url: window.location.pathname,
+         start_url: window.location.origin + window.location.pathname, 
          display: "standalone",
          background_color: "#000000",
          theme_color: "#EA580C",
@@ -376,16 +375,20 @@ export default function App() {
     };
   }, [supabase, currentTenantId]);
 
+  // OTIMIZAÇÃO DE DESEMPENHO: Removido activeTab do array para evitar refetch total do banco de dados ao trocar de aba
   useEffect(() => {
     if (supabase && isAuthenticated && currentTenantId) fetchData();
-  }, [supabase, isAuthenticated, currentTenantId, activeTab]);
+  }, [supabase, isAuthenticated, currentTenantId]);
 
   const fetchData = async () => {
     if (!supabase || !currentTenantId) return;
     try {
       // 1. Busca imediata dos veículos (sem await para não bloquear a renderização da tela)
       supabase.from('autoprime_vehicles').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false })
-        .then(({ data }) => setVehicles(data || []));
+        .then(({ data, error }) => {
+          // Proteção contra oscilação de rede: Só atualiza a tela se tiver sucesso
+          if (!error && data) setVehicles(data);
+        });
 
       // 2. Limpeza automática em background
       const oneMonthAgo = new Date();
@@ -394,7 +397,7 @@ export default function App() {
 
       // 3. Busca de todos os outros dados em paralelo (muito mais rápido que em cascata)
       const [
-        { data: cData }, { data: iData }, { data: logData }, { data: fData }, { data: pData }
+        { data: cData, error: cErr }, { data: iData, error: iErr }, { data: logData, error: logErr }, { data: fData, error: fErr }, { data: pData, error: pErr }
       ] = await Promise.all([
         supabase.from('autoprime_crm').select('*').eq('tenant_id', currentTenantId).order('last_entry', { ascending: false }),
         supabase.from('autoprime_inventory').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false }),
@@ -403,11 +406,11 @@ export default function App() {
         supabase.from('autoprime_profile').select('*').eq('tenant_id', currentTenantId).maybeSingle()
       ]);
       
-      setCrmData(cData || []);
-      setInventory(iData || []);
-      setInventoryLog(logData || []);
-      if (fData) setFixedCosts(fData);
-      if (pData) {
+      if (!cErr && cData) setCrmData(cData);
+      if (!iErr && iData) setInventory(iData);
+      if (!logErr && logData) setInventoryLog(logData);
+      if (!fErr && fData) setFixedCosts(fData);
+      if (!pErr && pData) {
         setProfile(pData);
         if (pData.custom_services) setServiceOptions(pData.custom_services);
         if (pData.app_settings) setAppSettings(pData.app_settings);
@@ -821,7 +824,7 @@ export default function App() {
     
     // Experiência instantânea: Fecha a tela e limpa os dados antes de esperar a resposta do servidor
     setIsModalOpen(false);
-    setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Sedan", color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Aguardando Aprovação", selectedServices: [], customPieceText: "", customServicesList: [], photos: {} });
+    setNewVehicle({ customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Sedan", color: "", location: "BOX 01", professional: "", price: "", cost: "", workStatus: "Registrado", selectedServices: [], customPieceText: "", customServicesList: [], photos: {} });
     showNotification("Registrando veículo...");
 
     try {
@@ -971,7 +974,7 @@ export default function App() {
   }, [vehicles, fixedCosts, totalInventoryValue]);
 
   const filteredVehicles = useMemo(() => {
-    if (dashboardFilter === 'budgets') return activeVehiclesMemo.filter(v => v.work_status === 'Aguardando Aprovação');
+    if (dashboardFilter === 'budgets') return activeVehiclesMemo.filter(v => v.work_status === 'Registrado');
     if (dashboardFilter === 'registered') return activeVehiclesMemo.filter(v => v.work_status === 'Agendados');
     if (dashboardFilter === 'in_work') return activeVehiclesMemo.filter(v => v.work_status === 'Em Produção');
     if (dashboardFilter === 'done') return historyVehiclesMemo;
@@ -1250,7 +1253,7 @@ export default function App() {
               <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[ 
-                    { id: 'budgets', label: 'Orçamentos', val: activeVehiclesMemo.filter(v => v.work_status === 'Aguardando Aprovação').length, icon: ClipboardList, color: 'text-zinc-500' }, 
+                    { id: 'budgets', label: 'Registrado', val: activeVehiclesMemo.filter(v => v.work_status === 'Registrado').length, icon: ClipboardList, color: 'text-zinc-500' }, 
                     { id: 'registered', label: 'Agendados', val: activeVehiclesMemo.filter(v => v.work_status === 'Agendados').length, icon: Car, color: 'text-orange-500' }, 
                     { id: 'in_work', label: 'Em Produção', val: activeVehiclesMemo.filter(v => v.work_status === 'Em Produção').length, icon: Wrench, color: 'text-blue-500' }, 
                     { id: 'done', label: 'Concluídos', val: historyVehiclesMemo.length, icon: CheckCircle2, color: 'text-emerald-500' } 
@@ -1291,7 +1294,7 @@ export default function App() {
                       </div>
                       <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                           <div className="flex-1 min-w-0 flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
-                              {['Aguardando Aprovação', 'Agendados', 'Em Produção', 'Concluído'].map(st => (
+                              {['Registrado', 'Agendados', 'Em Produção', 'Concluído'].map(st => (
                                   <button 
                                     key={st} 
                                     onClick={() => updateWorkStatus(v.id, st)} 
@@ -1932,7 +1935,7 @@ export default function App() {
                          ))}
                       </div>
 
-                      {/* Seção: Data de Agendamento - REFORÇADO VISUALMENTE */}
+                      {/* Seção: Data de Agendamento */}
                       <div className="p-6 bg-zinc-900 border-2 border-orange-600/50 rounded-3xl shadow-2xl shadow-orange-600/10 space-y-4">
                           <p className="text-[11px] font-black text-orange-500 uppercase tracking-[0.2em] flex items-center gap-2 italic leading-none">
                             <Calendar size={18} className="text-orange-600 animate-pulse"/> AGENDAMENTO DO VEÍCULO
@@ -1971,7 +1974,7 @@ export default function App() {
                                {viewingVehicle.scheduled_date && (
                                  <button 
                                    onClick={async () => {
-                                     const upd = { work_status: 'Aguardando Aprovação', scheduled_date: null };
+                                     const upd = { work_status: 'Registrado', scheduled_date: null };
                                      const { error = null } = await supabase.from('autoprime_vehicles').update(upd).eq('id', viewingVehicle.id);
                                      if (!error) {
                                        setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, ...upd } : v));
@@ -2005,7 +2008,7 @@ export default function App() {
                          </form>
                       </div>
 
-                      {/* Seção: Histórico de Consumo (ESTADO: ADICIONADO/CONFERIDO) */}
+                      {/* Seção: Histórico de Consumo */}
                       <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
                           <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 italic leading-none">
                             <History size={14} className="text-blue-400"/> HISTÓRICO DE CONSUMO (ESTOQUE)
@@ -2025,7 +2028,7 @@ export default function App() {
                           </div>
                       </div>
 
-                      {/* Seção: Serviços Solicitados (ESTADO: ADICIONADO) */}
+                      {/* Seção: Serviços Solicitados */}
                       <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
                           <div className="flex justify-between items-center">
                               <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 italic leading-none">
@@ -2058,7 +2061,7 @@ export default function App() {
                           </div>
                       </div>
 
-                      {/* Seção: Link de Acompanhamento (ESTADO: ADICIONADO) */}
+                      {/* Seção: Link de Acompanhamento */}
                       <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
                           <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none">
                             <Share2 size={14}/> LINK DE ACOMPANHAMENTO (WHATSAPP)
@@ -2082,7 +2085,7 @@ export default function App() {
                            <Activity size={14} className="text-orange-600"/> STATUS GERAL DO VEÍCULO
                          </p>
                          <div className="flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
-                            {['Aguardando Aprovação', 'Agendados', 'Em Produção', 'Concluído'].map(st => (
+                            {['Registrado', 'Agendados', 'Em Produção', 'Concluído'].map(st => (
                                <button 
                                  key={st} 
                                  onClick={() => updateWorkStatus(viewingVehicle.id, st)} 
@@ -2112,7 +2115,7 @@ export default function App() {
                          </div>
                       </div>
 
-                      {/* Seção Final: Valores (ESTADO: ADICIONADO/CONFERIDO CUSTO MATERIAL) */}
+                      {/* Seção Final: Valores */}
                       <div className="grid grid-cols-2 gap-4">
                          <div className="p-5 bg-emerald-600/5 border border-emerald-500/20 rounded-2xl flex flex-col gap-3">
                             <div>
@@ -2131,7 +2134,7 @@ export default function App() {
                       </div>
                    </div>
 
-                   {/* Coluna Direita: Fotos - AJUSTADO PARA ROLAGEM MOBILE */}
+                   {/* Coluna Direita: Fotos */}
                    <div className="flex md:grid overflow-x-auto md:overflow-x-visible md:grid-cols-2 gap-4 h-fit md:sticky md:top-0 pb-6 md:pb-0 no-scrollbar snap-x snap-mandatory overscroll-x-contain">
                       {/* Galeria de Fotos */}
                       {Object.keys(viewingVehicle.photos || {}).map((key, idx) => (
