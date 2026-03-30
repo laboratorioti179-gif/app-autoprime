@@ -275,6 +275,7 @@ export default function App() {
     setMeta("description", "Gestão profissional de estética e pintura automóvel.");
 
     // 4. Converter SVG para PNG via Canvas para compatibilidade Mobile (iOS/Android)
+    // Sistemas móveis (especialmente iOS) ignoram SVGs para ícones de atalho. É necessário PNG.
     const canvas = document.createElement('canvas');
     canvas.width = 192;
     canvas.height = 192;
@@ -300,11 +301,11 @@ export default function App() {
       setIcon('shortcut icon', pngUrl);
       setIcon('apple-touch-icon', pngUrl, '192x192');
 
-      // 5. Gerar Manifest dinâmico com start_url corrigido (Uso de URL absoluta para evitar erro de validação)
+      // 5. Gerar Manifest dinâmico para Android (Garante o funcionamento do "Adicionar à Tela Principal")
       const manifest = {
          name: "AutoPrime",
          short_name: "AutoPrime",
-         start_url: window.location.origin + window.location.pathname, 
+         start_url: window.location.pathname,
          display: "standalone",
          background_color: "#000000",
          theme_color: "#EA580C",
@@ -1935,7 +1936,7 @@ export default function App() {
                          ))}
                       </div>
 
-                      {/* Seção: Data de Agendamento */}
+                      {/* Seção: Data de Agendamento - REFORÇADO VISUALMENTE */}
                       <div className="p-6 bg-zinc-900 border-2 border-orange-600/50 rounded-3xl shadow-2xl shadow-orange-600/10 space-y-4">
                           <p className="text-[11px] font-black text-orange-500 uppercase tracking-[0.2em] flex items-center gap-2 italic leading-none">
                             <Calendar size={18} className="text-orange-600 animate-pulse"/> AGENDAMENTO DO VEÍCULO
@@ -2008,7 +2009,7 @@ export default function App() {
                          </form>
                       </div>
 
-                      {/* Seção: Histórico de Consumo */}
+                      {/* Seção: Histórico de Consumo (ESTADO: ADICIONADO/CONFERIDO) */}
                       <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
                           <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 italic leading-none">
                             <History size={14} className="text-blue-400"/> HISTÓRICO DE CONSUMO (ESTOQUE)
@@ -2028,7 +2029,7 @@ export default function App() {
                           </div>
                       </div>
 
-                      {/* Seção: Serviços Solicitados */}
+                      {/* Seção: Serviços Solicitados (ESTADO: ADICIONADO) */}
                       <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
                           <div className="flex justify-between items-center">
                               <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 italic leading-none">
@@ -2061,7 +2062,7 @@ export default function App() {
                           </div>
                       </div>
 
-                      {/* Seção: Link de Acompanhamento */}
+                      {/* Seção: Link de Acompanhamento (ESTADO: ADICIONADO) */}
                       <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
                           <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 italic leading-none">
                             <Share2 size={14}/> LINK DE ACOMPANHAMENTO (WHATSAPP)
@@ -2115,7 +2116,7 @@ export default function App() {
                          </div>
                       </div>
 
-                      {/* Seção Final: Valores */}
+                      {/* Seção Final: Valores (ESTADO: ADICIONADO/CONFERIDO CUSTO MATERIAL) */}
                       <div className="grid grid-cols-2 gap-4">
                          <div className="p-5 bg-emerald-600/5 border border-emerald-500/20 rounded-2xl flex flex-col gap-3">
                             <div>
@@ -2134,7 +2135,7 @@ export default function App() {
                       </div>
                    </div>
 
-                   {/* Coluna Direita: Fotos */}
+                   {/* Coluna Direita: Fotos - AJUSTADO PARA ROLAGEM MOBILE */}
                    <div className="flex md:grid overflow-x-auto md:overflow-x-visible md:grid-cols-2 gap-4 h-fit md:sticky md:top-0 pb-6 md:pb-0 no-scrollbar snap-x snap-mandatory overscroll-x-contain">
                       {/* Galeria de Fotos */}
                       {Object.keys(viewingVehicle.photos || {}).map((key, idx) => (
