@@ -724,7 +724,7 @@ export default function App() {
 
       // Disparar Webhook para o n8n informando a mudança de status geral
       try {
-        fetch('https://n8n-projeto-n8n.bi9xft.easypanel.host/webhook-test/change_status', {
+        fetch('https://n8n-projeto-n8n.bi9xft.easypanel.host/webhook/change_status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
