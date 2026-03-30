@@ -756,7 +756,7 @@ export default function App() {
 
       // Disparar Webhook para o n8n informando a mudança de etapa na estufa
       try {
-        fetch('COLOQUE_SEU_WEBHOOK_DO_N8N_AQUI', {
+        fetch('https://n8n-projeto-n8n.bi9xft.easypanel.host/webhook/change_status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
