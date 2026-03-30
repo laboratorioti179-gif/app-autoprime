@@ -549,7 +549,7 @@ export default function App() {
       showNotification("A redirecionar para o pagamento seguro...");
       const userEmail = encodeURIComponent(profile.email || loginForm.email || "");
       // Redireciona para o link da Stripe enviando o e-mail e o ID da oficina para o Webhook reconhecer o pagamento
-      const paymentLink = `https://buy.stripe.com/https://buy.stripe.com/8x2dR1h0caOj3tT17kgIo01?prefilled_email=${userEmail}&client_reference_id=${currentTenantId}`;
+      const paymentLink = `https://buy.stripe.com/8x2dR1h0caOj3tT17kgIo01?prefilled_email=${userEmail}&client_reference_id=${currentTenantId}`;
       window.location.href = paymentLink;
     } catch (err) {
       console.error("Erro ao redirecionar para pagamento:", err);
@@ -1220,7 +1220,7 @@ export default function App() {
         </div>
       ) : !isSubscriptionValid ? (
         <div className="min-h-screen w-full bg-black flex items-center justify-center p-6">
-          <Card className="w-full max-md p-10 text-center space-y-6 border-orange-600/30">
+          <Card className="w-full max-w-md p-10 text-center space-y-6 border-orange-600/30">
             <div className="flex justify-center">
               <div className="bg-orange-600/10 p-5 rounded-full text-orange-600 animate-pulse"><ShieldAlert size={48}/></div>
             </div>
@@ -1672,7 +1672,7 @@ export default function App() {
                     <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
                        <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
                           <div className="absolute inset-0 bg-gradient-to-br from-orange-600/5 to-transparent"></div>
-                          <div className="w-full max-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10">
+                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10">
                              <div className="flex justify-between items-center mb-4">
                                 <span className="text-sm font-black text-white uppercase italic">Painel</span>
                                 <div className="bg-orange-600 text-white px-3 py-1.5 rounded-lg font-bold text-[8px] uppercase flex items-center gap-1 shadow-md"><Plus size={12}/> Nova Entrada</div>
@@ -1693,7 +1693,7 @@ export default function App() {
                     <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
                        <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
                           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent"></div>
-                          <div className="w-full max-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
+                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
                              <p className="text-[7px] font-black text-zinc-400 uppercase flex items-center gap-1 italic"><BoxSelect size={10} className="text-blue-500"/> Materiais Aplicados</p>
                              <div className="flex gap-2">
                                 <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-2 text-[8px] text-zinc-500 font-bold">Verniz PU</div>
@@ -1712,7 +1712,7 @@ export default function App() {
                     <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
                        <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
                           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 to-transparent"></div>
-                          <div className="w-full max-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
+                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
                              <p className="text-[7px] font-black text-orange-600 uppercase flex items-center gap-1 italic"><Share2 size={10}/> Link de Acompanhamento</p>
                              <div className="flex gap-2 bg-zinc-900 p-2 rounded-lg border border-zinc-800">
                                 <div className="flex-1 bg-transparent px-2 text-[8px] text-zinc-500 font-mono py-1">autoprime.app/?v=123</div>
@@ -1730,7 +1730,7 @@ export default function App() {
                     <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
                        <div className="h-48 bg-zinc-950 flex flex-col items-center justify-center p-6 border-b border-zinc-800/50 relative overflow-hidden pointer-events-none">
                           <div className="absolute inset-0 bg-gradient-to-br from-zinc-600/5 to-transparent"></div>
-                          <div className="w-full max-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
+                          <div className="w-full max-w-sm bg-black border border-zinc-800 rounded-xl p-4 shadow-2xl z-10 space-y-3">
                              <p className="text-[9px] font-black text-white uppercase italic">Orçamentos PDF</p>
                              <div className="grid grid-cols-2 gap-2">
                                 <div className="h-8 bg-zinc-900 border border-zinc-800 rounded-lg"></div>
@@ -2180,7 +2180,7 @@ export default function App() {
           {/* MODAL DE ESTOQUE */}
           {isInventoryModalOpen && (
             <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[300] flex items-center justify-center p-4">
-              <Card className="w-full max-md p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+              <Card className="w-full max-w-md p-6 relative bg-zinc-950 border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                 <button 
                   type="button"
                   onClick={() => setIsInventoryModalOpen(false)} 
