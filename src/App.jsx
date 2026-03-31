@@ -246,7 +246,17 @@ export default function App() {
     const appName = "AutoPrime";
     document.title = appName;
     
-    // 2. Configurar Meta Tags para comportamento de App Nativo
+    // 2. Criar Ícone SVG Personalizado (Quadrado borda laranja, A branco e P laranja)
+    const iconSvg = `
+      <svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="8" width="176" height="176" rx="36" fill="#09090B" stroke="#EA580C" stroke-width="16"/>
+        <text x="92" y="130" font-family="sans-serif" font-weight="900" font-style="italic" font-size="90" text-anchor="middle">
+          <tspan fill="#FFFFFF">A</tspan><tspan fill="#EA580C">P</tspan>
+        </text>
+      </svg>
+    `.trim();
+
+    // 3. Configurar Meta Tags para comportamento de App Nativo
     const setMeta = (name, content) => {
         let meta = document.querySelector(`meta[name="${name}"]`);
         if (!meta) {
@@ -264,18 +274,19 @@ export default function App() {
     setMeta("theme-color", "#EA580C"); // Cor Laranja do Tema
     setMeta("description", "Gestão profissional de estética e pintura automóvel.");
 
-    // 3. Usar a imagem anexada como ícone do PWA/Atalho
+    // 4. Converter SVG para PNG via Canvas para compatibilidade Mobile (iOS/Android)
+    // Sistemas móveis (especialmente iOS) ignoram SVGs para ícones de atalho. É necessário PNG.
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 192;
+    canvas.height = 192;
     const ctx = canvas.getContext('2d');
     const img = new Image();
     
     img.onload = () => {
-      ctx.drawImage(img, 0, 0, 512, 512);
+      ctx.drawImage(img, 0, 0);
       const pngUrl = canvas.toDataURL('image/png');
       
-      // Forçar a remoção de favicons antigos
+      // Forçar a remoção de favicons antigos (Remove o símbolo da Vercel/Vite)
       document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]').forEach(el => el.remove());
       
       const setIcon = (rel, href, sizes = null) => {
@@ -286,11 +297,11 @@ export default function App() {
         document.head.appendChild(link);
       };
 
-      setIcon('icon', pngUrl, '512x512');
+      setIcon('icon', pngUrl, '192x192');
       setIcon('shortcut icon', pngUrl);
-      setIcon('apple-touch-icon', pngUrl, '512x512');
+      setIcon('apple-touch-icon', pngUrl, '192x192');
 
-      // Gerar Manifest dinâmico
+      // 5. Gerar Manifest dinâmico para Android (Garante o funcionamento do "Adicionar à Tela Principal")
       const manifest = {
          name: "AutoPrime",
          short_name: "AutoPrime",
@@ -298,13 +309,12 @@ export default function App() {
          display: "standalone",
          background_color: "#000000",
          theme_color: "#EA580C",
-         icons: [{ src: pngUrl, sizes: "512x512", type: "image/png", purpose: "any maskable" }]
+         icons: [{ src: pngUrl, sizes: "192x192", type: "image/png", purpose: "any maskable" }]
       };
       const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
       setIcon('manifest', URL.createObjectURL(manifestBlob));
     };
-    // Carrega a imagem enviada pelo utilizador
-    img.src = 'Design sem nome.png';
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(iconSvg);
   }, []);
 
   useEffect(() => {
