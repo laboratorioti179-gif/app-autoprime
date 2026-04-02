@@ -183,7 +183,7 @@ export default function App() {
 
   const [profile, setProfile] = useState({
     workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: "", instagram: "",
-    subscription_status: "Pendente", subscription_expires_at: null, stripe_customer_id: null
+    subscription_status: "Carregando", subscription_expires_at: null, stripe_customer_id: null
   });
 
   const [appSettings, setAppSettings] = useState({
@@ -203,6 +203,7 @@ export default function App() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   
   const [newVehicle, setNewVehicle] = useState({
     customerName: "", phone: "", brand: "", model: "", licensePlate: "", type: "Sedan", 
@@ -524,6 +525,18 @@ export default function App() {
   };
 
   const handleLogout = () => { setIsAuthenticated(false); localStorage.clear(); window.location.href = window.location.pathname; };
+
+  const handleDeleteAccount = async () => {
+    if (supabase) {
+      showNotification("Eliminando conta...", "danger");
+      await supabase.from('autoprime_admins').delete().eq('tenant_id', currentTenantId);
+      await supabase.from('autoprime_profile').delete().eq('tenant_id', currentTenantId);
+      await supabase.from('autoprime_vehicles').delete().eq('tenant_id', currentTenantId);
+      await supabase.from('autoprime_inventory').delete().eq('tenant_id', currentTenantId);
+      await supabase.from('autoprime_crm').delete().eq('tenant_id', currentTenantId);
+      handleLogout();
+    }
+  };
 
   const handleManageSubscription = async () => {
     if (!supabase) return;
@@ -1218,6 +1231,8 @@ export default function App() {
               </div>
            </div>
         </div>
+      ) : profile.subscription_status === 'Carregando' ? (
+        <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando perfil...</div>
       ) : !isSubscriptionValid ? (
         <div className="min-h-screen w-full bg-black flex items-center justify-center p-6">
           <Card className="w-full max-w-md p-10 text-center space-y-6 border-orange-600/30">
@@ -1656,7 +1671,29 @@ export default function App() {
                        }
                        showNotification("Perfil atualizado com sucesso!");
                     }} className="w-full py-3"><Save size={16}/> Guardar Meu Perfil</Button>
+                    
+                    <div className="pt-4 mt-4 border-t border-zinc-800/50">
+                       <Button variant="danger" onClick={() => setIsDeleteModalOpen(true)} className="w-full py-3 opacity-50 hover:opacity-100"><Trash2 size={16}/> Excluir Minha Conta Permanentemente</Button>
+                    </div>
                  </Card>
+
+                 {isDeleteModalOpen && (
+                    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[400] flex items-center justify-center p-4">
+                       <Card className="w-full max-w-md p-6 relative bg-zinc-950 border-red-600/30 shadow-2xl text-center space-y-6">
+                          <div className="bg-red-600/10 p-4 rounded-full inline-block text-red-500 mb-2">
+                             <AlertTriangle size={32} />
+                          </div>
+                          <h2 className="text-xl font-black text-white uppercase italic">Excluir Conta?</h2>
+                          <p className="text-[10px] font-bold uppercase text-zinc-500 tracking-widest leading-relaxed">
+                             Esta ação é irreversível. Todos os seus dados de veículos, estoque e clientes serão apagados permanentemente.
+                          </p>
+                          <div className="flex gap-3 pt-4">
+                             <Button variant="outline" className="flex-1" onClick={() => setIsDeleteModalOpen(false)}>Cancelar</Button>
+                             <Button variant="danger" className="flex-1" onClick={handleDeleteAccount}>Sim, Excluir</Button>
+                          </div>
+                       </Card>
+                    </div>
+                 )}
               </div>
             )}
 
