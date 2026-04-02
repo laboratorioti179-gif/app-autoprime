@@ -1077,47 +1077,49 @@ export default function App() {
     return whitelisted.includes(status);
   }, [profile.subscription_status, profile.subscription_expires_at]);
 
-  if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando sistema...</div>;
+  if (authLoading) return <div className="h-[100dvh] w-full fixed inset-0 bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando sistema...</div>;
 
   if (isPublicView) {
-    if (!publicVehicle) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando dados...</div>;
-    if (publicVehicle.error) return <div className="min-h-screen bg-black flex flex-col items-center justify-center text-red-500 font-bold uppercase text-[10px] tracking-widest gap-2"><AlertTriangle size={24}/>Veículo não encontrado ou acesso restrito.</div>;
+    if (!publicVehicle) return <div className="h-[100dvh] w-full fixed inset-0 bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando dados...</div>;
+    if (publicVehicle.error) return <div className="h-[100dvh] w-full fixed inset-0 bg-black flex flex-col items-center justify-center text-red-500 font-bold uppercase text-[10px] tracking-widest gap-2"><AlertTriangle size={24}/>Veículo não encontrado ou acesso restrito.</div>;
     const stages = ['Funilaria', 'Preparação', 'Pintura', 'Polimento', 'Finalizado'];
     const currentIdx = stages.indexOf(publicVehicle.current_stage);
     return (
-      <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center justify-center font-sans overflow-hidden">
-        <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in-95 duration-700 text-center">
-           <div className="space-y-2 flex flex-col items-center">
-              <h1 className="text-5xl font-black italic uppercase tracking-tighter mt-4">Auto<span className="text-orange-600">Prime</span></h1>
-              <div className="h-px w-12 bg-zinc-800 mx-auto mt-4"></div>
-           </div>
-           <Card className="p-8 border-t-8 border-t-orange-600 bg-zinc-900/50 backdrop-blur-xl">
-              <div className="space-y-6">
-                 <div>
-                    <h2 className="text-2xl font-black uppercase italic tracking-tight">{publicVehicle.brand} {publicVehicle.model}</h2>
-                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] mt-2">{publicVehicle.license_plate} • {publicVehicle.color}</p>
-                 </div>
-                 <div className="py-6 px-4 bg-black/40 rounded-2xl border border-zinc-800/50">
-                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Status Atual</p>
-                    <p className="text-orange-500 text-lg font-black uppercase italic tracking-tighter">
-                      {publicVehicle.work_status === 'Em Produção' ? `Em Produção: ${publicVehicle.current_stage}` : publicVehicle.work_status}
-                    </p>
-                 </div>
-                 {publicVehicle.work_status === 'Em Produção' && (
-                    <div className="flex justify-between items-center px-2">
-                       {stages.map((st, i) => (
-                         <div key={st} className="flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-1000 ${i <= currentIdx ? 'bg-orange-600 border-orange-600 text-black shadow-lg shadow-orange-600/30' : 'bg-zinc-950 border-zinc-800 text-zinc-800'}`}>
-                               {i < currentIdx ? <Check size={14} strokeWidth={4}/> : <span className="text-[10px] font-black">{i + 1}</span>}
-                            </div>
-                            <span className={`text-[7px] font-black uppercase tracking-widest ${i <= currentIdx ? 'text-white' : 'text-zinc-700'}`}>{st}</span>
-                         </div>
-                       ))}
-                    </div>
-                 )}
-              </div>
-           </Card>
-           <button onClick={() => window.location.reload()} className="w-full py-4 text-zinc-700 text-[10px] font-black uppercase tracking-[0.4em] flex items-center justify-center gap-2 hover:text-white transition-all"><RotateCcw size={14}/> Sincronizar Agora</button>
+      <div className="h-[100dvh] w-full fixed inset-0 overflow-y-auto bg-black text-white font-sans">
+        <div className="min-h-full flex flex-col items-center justify-center p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
+          <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in-95 duration-700 text-center">
+             <div className="space-y-2 flex flex-col items-center">
+                <h1 className="text-5xl font-black italic uppercase tracking-tighter mt-4">Auto<span className="text-orange-600">Prime</span></h1>
+                <div className="h-px w-12 bg-zinc-800 mx-auto mt-4"></div>
+             </div>
+             <Card className="p-8 border-t-8 border-t-orange-600 bg-zinc-900/50 backdrop-blur-xl">
+                <div className="space-y-6">
+                   <div>
+                      <h2 className="text-2xl font-black uppercase italic tracking-tight">{publicVehicle.brand} {publicVehicle.model}</h2>
+                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] mt-2">{publicVehicle.license_plate} • {publicVehicle.color}</p>
+                   </div>
+                   <div className="py-6 px-4 bg-black/40 rounded-2xl border border-zinc-800/50">
+                      <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Status Atual</p>
+                      <p className="text-orange-500 text-lg font-black uppercase italic tracking-tighter">
+                        {publicVehicle.work_status === 'Em Produção' ? `Em Produção: ${publicVehicle.current_stage}` : publicVehicle.work_status}
+                      </p>
+                   </div>
+                   {publicVehicle.work_status === 'Em Produção' && (
+                      <div className="flex justify-between items-center px-2">
+                         {stages.map((st, i) => (
+                           <div key={st} className="flex flex-col items-center gap-2">
+                              <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-1000 ${i <= currentIdx ? 'bg-orange-600 border-orange-600 text-black shadow-lg shadow-orange-600/30' : 'bg-zinc-950 border-zinc-800 text-zinc-800'}`}>
+                                 {i < currentIdx ? <Check size={14} strokeWidth={4}/> : <span className="text-[10px] font-black">{i + 1}</span>}
+                              </div>
+                              <span className={`text-[7px] font-black uppercase tracking-widest ${i <= currentIdx ? 'text-white' : 'text-zinc-700'}`}>{st}</span>
+                           </div>
+                         ))}
+                      </div>
+                   )}
+                </div>
+             </Card>
+             <button onClick={() => window.location.reload()} className="w-full py-4 text-zinc-700 text-[10px] font-black uppercase tracking-[0.4em] flex items-center justify-center gap-2 hover:text-white transition-all"><RotateCcw size={14}/> Sincronizar Agora</button>
+          </div>
         </div>
       </div>
     );
@@ -1162,14 +1164,14 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-zinc-300 font-sans flex flex-col md:flex-row relative">
+    <div className="h-[100dvh] w-full fixed inset-0 overflow-hidden bg-black text-zinc-300 font-sans flex flex-col md:flex-row selection:bg-orange-600/30">
       {notification.show && (
-        <div className="fixed top-4 right-4 z-[600] flex items-center gap-3 px-5 py-3 rounded-xl border bg-emerald-950/80 backdrop-blur-md border-emerald-500 text-emerald-400 animate-in shadow-xl">
+        <div className="fixed top-[max(1rem,env(safe-area-inset-top))] right-4 z-[600] flex items-center gap-3 px-5 py-3 rounded-xl border bg-emerald-950/80 backdrop-blur-md border-emerald-500 text-emerald-400 animate-in shadow-xl">
           <Check size={16}/><span className="font-bold uppercase text-[9px] tracking-widest">{notification.message}</span>
         </div>
       )}
       {!isAuthenticated ? (
-        <div className="min-h-screen w-full bg-black flex">
+        <div className="h-full w-full bg-black flex overflow-y-auto">
            {/* Lado Esquerdo - Autenticação */}
            <div className="w-full lg:w-1/2 flex items-center justify-center p-4 relative z-10">
              <Card className="w-full max-w-[320px] p-6 bg-zinc-900/50 border-zinc-800 backdrop-blur-xl">
@@ -1274,9 +1276,9 @@ export default function App() {
            </div>
         </div>
       ) : profile.subscription_status === 'Carregando' ? (
-        <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando perfil...</div>
+        <div className="h-full w-full bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando perfil...</div>
       ) : !isSubscriptionValid ? (
-        <div className="min-h-screen w-full bg-black flex items-center justify-center p-6">
+        <div className="h-full w-full bg-black flex items-center justify-center p-6 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
           <Card className="w-full max-w-md p-10 text-center space-y-6 border-orange-600/30">
             <div className="flex justify-center">
               <div className="bg-orange-600/10 p-5 rounded-full text-orange-600 animate-pulse"><ShieldAlert size={48}/></div>
@@ -1294,26 +1296,50 @@ export default function App() {
         </div>
       ) : (
         <>
-          <header className="md:hidden flex items-center justify-between p-4 bg-zinc-950 border-b border-zinc-900 sticky top-0 z-50">
-            <div className="flex items-center gap-2">
-               <span className="text-xl font-black text-white italic tracking-tighter uppercase mt-0.5">Auto<span className="text-orange-600">Prime</span></span>
-            </div>
-            <button onClick={() => setIsMobileMenuOpen(true)} className="text-zinc-400 p-2"><Menu size={18} /></button>
+          {/* TOPO MOBILE (Nativo) */}
+          <header className="md:hidden flex items-center justify-center p-4 pt-[max(1rem,env(safe-area-inset-top))] bg-zinc-950 border-b border-zinc-900 z-40 shrink-0">
+            <span className="text-xl font-black text-white italic tracking-tighter uppercase mt-0.5">Auto<span className="text-orange-600">Prime</span></span>
           </header>
 
-          {/* MENU MOBILE OVERLAY - CORRIGINDO VISIBILIDADE NO CELULAR */}
+          {/* MENU MOBILE OVERLAY - DESLIZA DA DIREITA PARA ACOMPANHAR A BARRA INFERIOR */}
           {isMobileMenuOpen && (
             <div className="fixed inset-0 z-[500] md:hidden">
               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
-              <div className="absolute left-0 top-0 bottom-0 w-64 bg-zinc-950 p-6 flex flex-col border-r border-zinc-900 animate-in slide-in-from-left duration-300">
-                <button onClick={() => setIsMobileMenuOpen(false)} className="absolute top-4 right-4 text-zinc-700 hover:text-white transition-all z-10"><X size={20}/></button>
-                <SidebarContent />
+              <div className="absolute right-0 top-0 bottom-0 w-64 bg-zinc-950 p-6 flex flex-col border-l border-zinc-900 animate-in slide-in-from-right duration-300 shadow-2xl">
+                <button onClick={() => setIsMobileMenuOpen(false)} className="absolute top-4 left-4 text-zinc-700 hover:text-white transition-all z-10 p-2"><X size={20}/></button>
+                <div className="mt-8 flex-1 overflow-y-auto no-scrollbar pb-24">
+                   <SidebarContent />
+                </div>
               </div>
             </div>
           )}
 
-          <aside className="hidden md:flex flex-col w-64 bg-zinc-950 border-r border-zinc-900 p-6 sticky top-0 h-screen"><SidebarContent /></aside>
-          <main className="flex-1 min-h-screen overflow-y-auto bg-[#050505] p-6 lg:p-8">
+          {/* BOTTOM NAVIGATION BAR (App Nativo) */}
+          <nav className="md:hidden fixed bottom-0 w-full bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-900 flex justify-around items-center p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] z-40">
+             <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`p-2 flex flex-col items-center gap-1 transition-colors ${activeTab === 'dashboard' && !isMobileMenuOpen ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                <LayoutDashboard size={20} />
+                <span className="text-[8px] font-black uppercase">Painel</span>
+             </button>
+             <button onClick={() => {setActiveTab('inventory'); setIsMobileMenuOpen(false);}} className={`p-2 flex flex-col items-center gap-1 transition-colors ${activeTab === 'inventory' && !isMobileMenuOpen ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                <Package size={20} />
+                <span className="text-[8px] font-black uppercase">Estoque</span>
+             </button>
+             <button onClick={() => setIsModalOpen(true)} className="bg-orange-600 text-black p-3.5 rounded-full -mt-8 shadow-[0_0_20px_rgba(234,88,12,0.4)] border-4 border-[#050505] active:scale-95 transition-transform">
+                <Plus size={20} strokeWidth={3} />
+             </button>
+             <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`p-2 flex flex-col items-center gap-1 transition-colors ${activeTab === 'history' && !isMobileMenuOpen ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                <History size={20} />
+                <span className="text-[8px] font-black uppercase">Histórico</span>
+             </button>
+             <button onClick={() => setIsMobileMenuOpen(true)} className={`p-2 flex flex-col items-center gap-1 transition-colors ${isMobileMenuOpen ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                <Menu size={20} />
+                <span className="text-[8px] font-black uppercase">Menu</span>
+             </button>
+          </nav>
+
+          <aside className="hidden md:flex flex-col w-64 bg-zinc-950 border-r border-zinc-900 p-6 h-full shrink-0 z-10"><SidebarContent /></aside>
+          
+          <main className="flex-1 h-full overflow-y-auto overflow-x-hidden bg-[#050505] p-4 md:p-6 lg:p-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8 scroll-smooth relative">
             {activeTab === 'dashboard' && (
               <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -2322,7 +2348,7 @@ export default function App() {
         </>
       )}
       <style dangerouslySetInnerHTML={{ __html: `
-        body { background: black; margin: 0; } 
+        body, html { background: black; margin: 0; overflow: hidden; overscroll-behavior-y: none; height: 100%; width: 100%; touch-action: pan-x pan-y; } 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.99); } to { opacity: 1; transform: scale(1); } }
         .animate-in { animation: fadeIn 0.15s ease-out forwards; }
