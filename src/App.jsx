@@ -234,8 +234,15 @@ export default function App() {
     showNotification("Link copiado!");
   };
 
+  const getBaseUrl = () => {
+    const href = window.location.href;
+    if (href.includes('?')) return href.split('?')[0];
+    if (href.includes('#')) return href.split('#')[0];
+    return href;
+  };
+
   const sendWhatsAppLink = (vehicle) => {
-    const link = `${window.location.origin}${window.location.pathname}?v=${vehicle.id}`;
+    const link = `${getBaseUrl()}?v=${vehicle.id}`;
     const text = `Olá ${vehicle.customer_name}! Segue o link para acompanhar o status do seu veículo (${vehicle.brand} ${vehicle.model}) em tempo real na ${profile.workshop_name || 'AutoPrime'}: ${link}`;
     const phone = (vehicle.phone || "").replace(/\D/g, '');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
@@ -333,6 +340,25 @@ export default function App() {
         await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
         const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         setSupabase(sb);
+
+        // Busca extra-robusta do parâmetro 'v' (Ignora redirects que movem o param ou escondem na URL)
+        let publicVehicleId = new URLSearchParams(window.location.search).get('v');
+        if (!publicVehicleId) {
+          const match = window.location.href.match(/[?&]v=([^&#]*)/);
+          if (match) publicVehicleId = match[1];
+        }
+        
+        if (publicVehicleId) {
+          setIsPublicView(true);
+          const { data } = await sb.from('autoprime_vehicles').select('*').eq('id', publicVehicleId).maybeSingle();
+          if (data) {
+             setPublicVehicle(data);
+          } else {
+             setPublicVehicle({ error: true });
+          }
+          setAuthLoading(false);
+          return;
+        }
 
         const savedAuth = localStorage.getItem('autoprime_session_active');
         const savedTenant = localStorage.getItem('autoprime_tenant_id');
@@ -1055,6 +1081,7 @@ export default function App() {
 
   if (isPublicView) {
     if (!publicVehicle) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando dados...</div>;
+    if (publicVehicle.error) return <div className="min-h-screen bg-black flex flex-col items-center justify-center text-red-500 font-bold uppercase text-[10px] tracking-widest gap-2"><AlertTriangle size={24}/>Veículo não encontrado ou acesso restrito.</div>;
     const stages = ['Funilaria', 'Preparação', 'Pintura', 'Polimento', 'Finalizado'];
     const currentIdx = stages.indexOf(publicVehicle.current_stage);
     return (
@@ -2127,9 +2154,9 @@ export default function App() {
                             <Share2 size={14}/> LINK DE ACOMPANHAMENTO (WHATSAPP)
                           </p>
                           <div className="flex gap-2 bg-black/40 p-2 rounded-xl border border-zinc-800">
-                             <input readOnly className="bg-transparent flex-1 px-3 text-[10px] text-zinc-500 font-mono outline-none truncate" value={`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`}/>
+                             <input readOnly className="bg-transparent flex-1 px-3 text-[10px] text-zinc-500 font-mono outline-none truncate" value={`${getBaseUrl()}?v=${viewingVehicle.id}`}/>
                              <div className="flex gap-1.5">
-                                <button onClick={() => copyToClipboard(`${window.location.origin}${window.location.pathname}?v=${viewingVehicle.id}`)} className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-zinc-300 transition-all flex items-center gap-2 border border-zinc-700">
+                                <button onClick={() => copyToClipboard(`${getBaseUrl()}?v=${viewingVehicle.id}`)} className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-zinc-300 transition-all flex items-center gap-2 border border-zinc-700">
                                    <Copy size={14}/> <span className="text-[9px] font-black uppercase italic tracking-wider">Copiar</span>
                                 </button>
                                 <button onClick={() => sendWhatsAppLink(viewingVehicle)} className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-white transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20">
