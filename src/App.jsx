@@ -416,8 +416,23 @@ export default function App() {
         setProfile(pData);
         if (pData.custom_services) setServiceOptions(pData.custom_services);
         if (pData.app_settings) setAppSettings(pData.app_settings);
+      } else if (!pErr && !pData) {
+        // Conta antiga sem perfil na tabela: Cria um perfil dinâmico para desbloquear a tela imediatamente
+        const fallbackProfile = { 
+          tenant_id: currentTenantId, 
+          workshop_name: currentTenantId,
+          subscription_status: 'Trial', 
+          subscription_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() 
+        };
+        supabase.from('autoprime_profile').upsert([fallbackProfile]).then();
+        setProfile(fallbackProfile);
+      } else {
+        setProfile(prev => ({ ...prev, subscription_status: 'Expirada' }));
       }
-    } catch(e) { console.error("Erro ao buscar dados:", e); }
+    } catch(e) { 
+      console.error("Erro ao buscar dados:", e); 
+      setProfile(prev => ({ ...prev, subscription_status: 'Erro' }));
+    }
   };
 
   const handleLogin = async (e) => {
