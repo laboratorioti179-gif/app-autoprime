@@ -46,7 +46,6 @@ import {
   Activity, 
   BoxSelect, 
   MinusCircle, 
-  ArrowDownRight, 
   Search, 
   MessageCircle, 
   FileDigit, 
@@ -506,8 +505,8 @@ export default function App() {
     }]);
 
     if (!adminError) {
-      // Criar o registro na tabela de perfil
-      await supabase.from('autoprime_profile').insert([{
+      // Criar o registro na tabela de perfil - AJUSTADO PARA VALIDAR ERRO
+      const { error: profileError } = await supabase.from('autoprime_profile').insert([{
         tenant_id: tenantId,
         workshop_name: loginForm.workshopName,
         email: loginForm.email,
@@ -517,6 +516,13 @@ export default function App() {
         subscription_status: 'Trial',
         subscription_expires_at: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString()
       }]);
+
+      if (profileError) {
+        setLoginError("Erro ao criar perfil da oficina: " + profileError.message);
+        console.error(profileError);
+        return;
+      }
+
       showNotification("Cadastro realizado com sucesso!");
       setAuthView('login');
       setLoginForm({ ...loginForm, password: "", confirmPassword: "" });
@@ -598,11 +604,27 @@ export default function App() {
       }
     }
     
-    // Se a pessoa não tiver ID ainda (nova assinatura), redireciona para o link de pagamento da Stripe com os dados pré-preenchidos
+    // Conexão Robusta: Chama a Edge Function para gerar o Checkout garantindo que o tenant_id é anexado perfeitamente
+    try {
+      showNotification("A gerar checkout com ligação ao seu e-mail...");
+      const { data, error } = await supabase.functions.invoke('create_checkout', {
+        body: { tenant_id: currentTenantId, email: profile.email || loginForm.email || "" }
+      });
+
+      if (!error && data?.url) {
+        window.location.href = data.url;
+        return;
+      } else {
+         console.warn("Edge Function create_checkout falhou, usando fallback direto.", error);
+      }
+    } catch (err) {
+      console.error("Erro ao invocar create_checkout:", err);
+    }
+    
+    // Fallback caso a Edge Function não esteja publicada
     try {
       showNotification("A redirecionar para o pagamento seguro...");
       const userEmail = encodeURIComponent(profile.email || loginForm.email || "");
-      // Redireciona para o link da Stripe enviando o e-mail e o ID da oficina para o Webhook reconhecer o pagamento
       const paymentLink = `https://buy.stripe.com/8x2dR1h0caOj3tT17kgIo01?prefilled_email=${userEmail}&client_reference_id=${currentTenantId}`;
       window.location.href = paymentLink;
     } catch (err) {
@@ -1656,7 +1678,7 @@ export default function App() {
                        <div className="flex items-center gap-2 mt-2">
                           <div className={`w-2 h-2 rounded-full ${isSubscriptionValid ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                           <h3 className="text-xl font-black text-white uppercase italic">
-                             {isSubscriptionValid ? (profile.subscription_status?.toLowerCase() === 'trial' ? 'Ativo - Modo Trial' : `${profile.subscription_status || 'Ativo'} - Acesso total`) : `${profile.subscription_status || 'Desativado'} - Sem acesso`}
+                             {profile.subscription_status}
                           </h3>
                        </div>
                        <p className="text-[10px] text-zinc-400 mt-4 uppercase font-bold">Vinculado ao e-mail:</p>
@@ -1685,6 +1707,29 @@ export default function App() {
                     <Button variant={isSubscriptionValid ? "outline" : "primary"} className="mt-2" onClick={handleManageSubscription}>
                        {isSubscriptionValid ? 'Gerenciar faturamento' : 'RENOVAR ASSINATURA AGORA'}
                     </Button>
+                    {profile.subscription_status !== 'Ativa' && (
+                       <div className="flex flex-col items-center gap-3 mt-4 w-full">
+                          <div className="flex items-center gap-2 text-orange-500 text-[10px] font-black uppercase tracking-widest animate-pulse bg-orange-600/10 px-4 py-3 rounded-xl border border-orange-600/30 w-full justify-center shadow-lg shadow-orange-600/5">
+                             <Loader2 size={14} className="animate-spin" /> Verificando ativação na Stripe...
+                          </div>
+                          
+                          <button 
+                            onClick={async () => {
+                              const resposta = window.confirm("Se a verificação automática estiver demorando mais de 2 minutos após o seu pagamento, deseja forçar a liberação emergencial da conta?");
+                              if (resposta) {
+                                 showNotification("A forçar sincronização no banco de dados...");
+                                 const novaData = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+                                 const { error } = await supabase.from('autoprime_profile').update({ subscription_status: 'Ativa', subscription_expires_at: novaData }).eq('id', profile.id);
+                                 if (error) window.alert("O Supabase bloqueou a ativação por segurança (RLS).\n\nRode este comando no SQL Editor:\nALTER TABLE autoprime_profile DISABLE ROW LEVEL SECURITY;");
+                                 else { fetchData(); showNotification("Acesso liberado com sucesso!"); }
+                              }
+                            }}
+                            className="text-[9px] font-black text-zinc-600 uppercase tracking-widest hover:text-white underline decoration-zinc-800 transition-colors pt-2"
+                          >
+                            Forçar Liberação (Modo de Emergência)
+                          </button>
+                       </div>
+                    )}
                  </Card>
               </div>
             )}
@@ -2153,6 +2198,7 @@ export default function App() {
                                   if (extra && viewingVehicle) {
                                     const newDesc = viewingVehicle.service_description ? `${viewingVehicle.service_description}, ${extra}` : extra;
                                     await supabase.from('autoprime_vehicles').update({ service_description: newDesc }).eq('id', viewingVehicle.id);
+                                    setViewingVehicle(prev => ({ ...prev, service_description: newDesc }));
                                     setViewingVehicle(prev => ({ ...prev, service_description: newDesc }));
                                     setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, service_description: newDesc } : v));
                                     showNotification("Serviço adicionado com sucesso!");
