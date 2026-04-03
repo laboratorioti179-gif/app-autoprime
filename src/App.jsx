@@ -505,7 +505,7 @@ export default function App() {
     }]);
 
     if (!adminError) {
-      // Criar o registro na tabela de perfil - AJUSTADO PARA VALIDAR ERRO
+      // Criar o registro na tabela de perfil - AJUSTADO PARA CORRIGIR ERRO DE COLUNA FALTANTE
       const { error: profileError } = await supabase.from('autoprime_profile').insert([{
         tenant_id: tenantId,
         workshop_name: loginForm.workshopName,
@@ -514,12 +514,13 @@ export default function App() {
         cnpj: loginForm.cpf,
         address: loginForm.address,
         subscription_status: 'Trial',
+        pagamento_confirmado: false, // Adicionado para satisfazer o gatilho do banco
         subscription_expires_at: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString()
       }]);
 
       if (profileError) {
         setLoginError("Erro ao criar perfil da oficina: " + profileError.message);
-        console.error(profileError);
+        console.error("Erro profile:", profileError);
         return;
       }
 
@@ -2198,7 +2199,6 @@ export default function App() {
                                   if (extra && viewingVehicle) {
                                     const newDesc = viewingVehicle.service_description ? `${viewingVehicle.service_description}, ${extra}` : extra;
                                     await supabase.from('autoprime_vehicles').update({ service_description: newDesc }).eq('id', viewingVehicle.id);
-                                    setViewingVehicle(prev => ({ ...prev, service_description: newDesc }));
                                     setViewingVehicle(prev => ({ ...prev, service_description: newDesc }));
                                     setVehicles(prev => prev.map(v => v.id === viewingVehicle.id ? { ...v, service_description: newDesc } : v));
                                     showNotification("Serviço adicionado com sucesso!");
