@@ -1412,8 +1412,8 @@ export default function App() {
                         </div>
                         <span className="text-[8px] px-2 py-0.5 rounded-full font-black bg-zinc-950 text-orange-500 border border-zinc-800 uppercase">{v.work_status}</span>
                       </div>
-                      <div className="flex items-center justify-between gap-2" onClick={e => e.stopPropagation()}>
-                          <div className="flex-1 flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+                      <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                          <div className="flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
                               {['Registrado', 'Agendados', 'Em Produção', 'Concluído'].map(st => (
                                   <button 
                                     key={st} 
