@@ -1166,7 +1166,8 @@ export default function App() {
           { id: 'crm', label: 'CRM', icon: MessageCircle, visible: true },
           { id: 'subscription_manager', label: 'Assinatura', icon: CreditCard, visible: true },
           { id: 'my_profile', label: 'Meu Perfil', icon: User, visible: true },
-          { id: 'about', label: 'Guia de Uso', icon: HelpCircle, visible: true }
+          { id: 'about', label: 'Guia de Uso', icon: HelpCircle, visible: true },
+          { id: 'support', label: 'Suporte', icon: Phone, visible: true }
         ].filter(item => item.visible).map(item => (
           <button key={item.id} onClick={() => {setActiveTab(item.id); setIsMobileMenuOpen(false);}} className={`flex items-center gap-3 px-3 py-3 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all flex-shrink-0 ${activeTab === item.id ? 'bg-orange-600 text-black italic shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'}`}><item.icon size={16} /> {item.label}</button>
         ))}
@@ -1896,6 +1897,42 @@ export default function App() {
                        </div>
                     </Card>
                  </div>
+              </div>
+            )}
+
+            {activeTab === 'support' && (
+              <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                 <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Canais de Suporte</h2>
+                 <Card className="p-8 bg-zinc-900/50 border-zinc-800 space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                       <div className="flex flex-col items-center text-center p-6 bg-black/40 rounded-3xl border border-zinc-800 group hover:border-orange-600/30 transition-all">
+                          <div className="bg-orange-600/10 p-4 rounded-2xl text-orange-600 mb-4 group-hover:scale-110 transition-transform">
+                             <Phone size={24}/>
+                          </div>
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Telefone / WhatsApp</p>
+                          <p className="text-xs font-bold text-white uppercase tracking-tight leading-relaxed">
+                            11 988241182<br/>11 91798-1624
+                          </p>
+                       </div>
+                       <div className="flex flex-col items-center text-center p-6 bg-black/40 rounded-3xl border border-zinc-800 group hover:border-orange-600/30 transition-all">
+                          <div className="bg-orange-600/10 p-4 rounded-2xl text-orange-600 mb-4 group-hover:scale-110 transition-transform">
+                             <Mail size={24}/>
+                          </div>
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">E-mail</p>
+                          <p className="text-xs font-bold text-white lowercase tracking-tight">vivian.alves@solucoeslab.com</p>
+                       </div>
+                       <div className="flex flex-col items-center text-center p-6 bg-black/40 rounded-3xl border border-zinc-800 group hover:border-orange-600/30 transition-all">
+                          <div className="bg-orange-600/10 p-4 rounded-2xl text-orange-600 mb-4 group-hover:scale-110 transition-transform">
+                             <Globe size={24}/>
+                          </div>
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Site Oficial</p>
+                          <p className="text-xs font-bold text-white lowercase tracking-tight">lsagentai.solucoeslab.com</p>
+                       </div>
+                    </div>
+                    <div className="pt-4 text-center border-t border-zinc-800/50">
+                       <p className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.4em] italic">Atendimento especializado pela LS Agent AI</p>
+                    </div>
+                 </Card>
               </div>
             )}
           </main>
