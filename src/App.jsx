@@ -188,7 +188,8 @@ export default function App() {
   const [appSettings, setAppSettings] = useState({
     showPolishing: true,
     showInventory: true,
-    showFinance: true
+    showFinance: true,
+    autoSendStatus: false
   });
 
   const [serviceOptions, setServiceOptions] = useState([
@@ -799,19 +800,21 @@ export default function App() {
       const { error } = await supabase.from('autoprime_vehicles').update(upd).eq('id', id);
       if (error) throw error;
 
-      // Disparar Webhook para o n8n informando a mudança de status geral
-      try {
-        fetch('https://n8n-projeto-n8n.bi9xft.easypanel.host/webhook/change_status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            event: 'STATUS_CHANGED', 
-            new_status: newStatus, 
-            vehicle: currentV,
-            tenant_id: currentTenantId 
-          })
-        }).catch(() => {});
-      } catch (err) {}
+      // Disparar Webhook para o n8n informando a mudança de status geral (apenas se autoSendStatus estiver ativo ou manual via link)
+      if (appSettings.autoSendStatus) {
+        try {
+          fetch('https://n8n-projeto-n8n.bi9xft.easypanel.host/webhook/change_status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              event: 'STATUS_CHANGED', 
+              new_status: newStatus, 
+              vehicle: currentV,
+              tenant_id: currentTenantId 
+            })
+          }).catch(() => {});
+        } catch (err) {}
+      }
 
       setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd, scheduled_date: scheduledDate } : v));
       if (viewingVehicle && viewingVehicle.id === id) setViewingVehicle(prev => ({ ...prev, ...upd, scheduled_date: scheduledDate }));
@@ -831,19 +834,21 @@ export default function App() {
 
       const currentV = vehicles.find(v => v.id === id);
 
-      // Disparar Webhook para o n8n informando a mudança de etapa na estufa
-      try {
-        fetch('https://n8n-projeto-n8n.bi9xft.easypanel.host/webhook/change_status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            event: 'STAGE_CHANGED', 
-            new_stage: stage, 
-            vehicle: currentV,
-            tenant_id: currentTenantId 
-          })
-        }).catch(() => {});
-      } catch (err) {}
+      // Disparar Webhook para o n8n informando a mudança de etapa na estufa (apenas se autoSendStatus estiver ativo)
+      if (appSettings.autoSendStatus) {
+        try {
+          fetch('https://n8n-projeto-n8n.bi9xft.easypanel.host/webhook/change_status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              event: 'STAGE_CHANGED', 
+              new_stage: stage, 
+              vehicle: currentV,
+              tenant_id: currentTenantId 
+            })
+          }).catch(() => {});
+        } catch (err) {}
+      }
 
       setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...upd } : v));
       if (viewingVehicle && viewingVehicle.id === id) setViewingVehicle(prev => ({ ...prev, ...upd }));
@@ -1600,7 +1605,8 @@ export default function App() {
                     {[ 
                       { key: 'showPolishing', label: 'Módulo Polimento', icon: Sparkles, color: 'text-orange-500' }, 
                       { key: 'showInventory', label: 'Módulo Estoque', icon: Package, color: 'text-blue-500' }, 
-                      { key: 'showFinance', label: 'Módulo Financeiro', icon: DollarSign, color: 'text-emerald-500' } 
+                      { key: 'showFinance', label: 'Módulo Financeiro', icon: DollarSign, color: 'text-emerald-500' },
+                      { key: 'autoSendStatus', label: 'Envio Automático WhatsApp', icon: MessageCircle, color: 'text-orange-500' }
                     ].map(item => (
                       <Card key={item.key} onClick={() => {const ns={...appSettings, [item.key]: !appSettings[item.key]}; setAppSettings(ns); supabase.from('autoprime_profile').update({ app_settings: ns }).eq('tenant_id', currentTenantId); showNotification("Configuração Atualizada!");}} className={`p-5 border-2 cursor-pointer transition-all ${appSettings[item.key] ? 'border-orange-600/30' : 'border-zinc-900 grayscale opacity-40'}`}>
                          <div className="flex justify-between items-center mb-4">
