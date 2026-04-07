@@ -1413,7 +1413,7 @@ export default function App() {
                         <span className="text-[8px] px-2 py-0.5 rounded-full font-black bg-zinc-950 text-orange-500 border border-zinc-800 uppercase">{v.work_status}</span>
                       </div>
                       <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                          <div className="flex-1 min-w-0 flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+                          <div className="flex flex-nowrap items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-900 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
                               {['Registrado', 'Agendados', 'Em Produção', 'Concluído'].map(st => (
                                   <button 
                                     key={st} 
@@ -1862,7 +1862,7 @@ export default function App() {
                        </div>
                        <div className="p-6 space-y-3">
                           <h3 className="text-lg font-black text-white uppercase italic flex items-center gap-2"><Package className="text-orange-500" size={18}/> 2. Debitar Estoque</h3>
-                          <p className="text-zinc-400 text-xs font-bold leading-relaxed">Na ficha técnica de um veículo, desça até <b>Materiais Aplicados</b>. Escolha o produto gasto, a quantidade e clique em lançar. O custo abate no lucro e o estoque diminui automaticamente.</p>
+                          <p className="text-zinc-400 text-xs font-bold leading-relaxed">Na ficha técnica de um veículo, desça até <b>Materiais Aplicados</b>. Escolha o profissional gasto, a quantidade e clique em lançar. O custo abate no lucro e o estoque diminui automaticamente.</p>
                        </div>
                     </Card>
 
