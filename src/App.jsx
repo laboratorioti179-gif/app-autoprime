@@ -198,7 +198,7 @@ export default function App() {
   ]);
 
   const [fixedCosts, setFixedCosts] = useState({
-    aluguel: 0, material: 0, funcionario: 0, agua: 0, luz: 0, internet: 0
+    aluguel: 0, material: 0, funcionario: 0, agua: 0, luz: 0, internet: 0, custom_costs: []
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -437,7 +437,7 @@ export default function App() {
       if (!cErr && cData) setCrmData(cData);
       if (!iErr && iData) setInventory(iData);
       if (!logErr && logData) setInventoryLog(logData);
-      if (!fErr && fData) setFixedCosts(fData);
+      if (!fErr && fData) setFixedCosts({ custom_costs: [], ...fData });
       if (!pErr && pData) {
         setProfile(pData);
         if (pData.custom_services) setServiceOptions(pData.custom_services);
@@ -1052,7 +1052,11 @@ export default function App() {
 
   const financeMemo = useMemo(() => {
     const rev = vehicles.reduce((acc, v) => acc + (Number(v.price) || 0), 0);
-    const exp = Object.values({ ...fixedCosts, material: totalInventoryValue }).reduce((acc, val) => acc + (Number(val) || 0), 0);
+    const expBase = Object.entries({ ...fixedCosts, material: totalInventoryValue })
+      .filter(([k]) => k !== 'custom_costs')
+      .reduce((acc, [_, val]) => acc + (Number(val) || 0), 0);
+    const expCustom = (fixedCosts.custom_costs || []).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+    const exp = expBase + expCustom;
     return { rev, exp, profit: rev - exp };
   }, [vehicles, fixedCosts, totalInventoryValue]);
 
@@ -1569,6 +1573,24 @@ export default function App() {
                         <Input label="Luz" type="number" value={fixedCosts.luz} onChange={e => setFixedCosts({...fixedCosts, luz: e.target.value})} icon={Zap}/>
                         <Input label="Água" type="number" value={fixedCosts.agua} onChange={e => setFixedCosts({...fixedCosts, agua: e.target.value})} icon={Droplets}/>
                         <Input label="Internet" type="number" value={fixedCosts.internet} onChange={e => setFixedCosts({...fixedCosts, internet: e.target.value})} icon={Globe}/>
+                        
+                        <div className="col-span-2 md:col-span-3 space-y-3 mt-4 pt-4 border-t border-zinc-800">
+                           <div className="flex justify-between items-center">
+                              <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">Outros Gastos Operacionais</label>
+                              <button type="button" onClick={() => setFixedCosts({...fixedCosts, custom_costs: [...(fixedCosts.custom_costs || []), { name: "", value: "" }]})} className="text-[9px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest flex items-center gap-1"><Plus size={12}/> Adicionar Gasto</button>
+                           </div>
+                           {(fixedCosts.custom_costs || []).map((cost, idx) => (
+                             <div key={idx} className="flex gap-2 items-end animate-in fade-in">
+                                <div className="flex-1">
+                                  <Input placeholder="Nome (Ex: Marketing)" value={cost.name} onChange={e => { const newCosts = [...(fixedCosts.custom_costs || [])]; newCosts[idx].name = e.target.value; setFixedCosts({...fixedCosts, custom_costs: newCosts}); }} icon={FileText} />
+                                </div>
+                                <div className="w-32">
+                                  <Input placeholder="Valor" type="number" value={cost.value} onChange={e => { const newCosts = [...(fixedCosts.custom_costs || [])]; newCosts[idx].value = e.target.value; setFixedCosts({...fixedCosts, custom_costs: newCosts}); }} icon={DollarSign} />
+                                </div>
+                                <button type="button" onClick={() => { const newCosts = (fixedCosts.custom_costs || []).filter((_, i) => i !== idx); setFixedCosts({...fixedCosts, custom_costs: newCosts}); }} className="mb-1 p-2 bg-red-600/10 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-all"><Trash2 size={16}/></button>
+                             </div>
+                           ))}
+                        </div>
                      </div>
                      <Button onClick={() => supabase.from('autoprime_fixed_costs').upsert({ tenant_id: currentTenantId, ...fixedCosts }, { onConflict: 'tenant_id' }).then(() => showNotification("Balanço Salvo!"))} className="w-full py-3"><Save size={16}/> Guardar Balanço Financeiro</Button>
                   </Card>
