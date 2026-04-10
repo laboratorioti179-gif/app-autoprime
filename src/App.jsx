@@ -2050,7 +2050,7 @@ export default function App() {
                                onChange={e => setNewVehicle({...newVehicle, type: e.target.value})}
                             >
                                <option value="Sedan">Sedan</option>
-                               <option value="hatch">hatch</option>
+                               <option value="Hatch" translate="no" className="notranslate">Hatch</option>
                                <option value="SUV">SUV</option>
                                <option value="Picape">Picape</option>
                                <option value="Moto">Moto</option>
