@@ -181,7 +181,7 @@ export default function App() {
   }, [isAuthenticated, marketingContent.length]);
 
   const [profile, setProfile] = useState({
-    workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: "", instagram: "",
+    workshop_name: "", cnpj: "", owner_name: "", address: "", phone: "", email: "", instagram: "", company_logo: "",
     subscription_status: "Carregando", subscription_expires_at: null, stripe_customer_id: null
   });
 
@@ -649,17 +649,25 @@ export default function App() {
       doc.setFillColor(...dark);
       doc.rect(0, 0, 210, 50, 'F');
       
+      let headerX = 15;
+      if (profile.company_logo) {
+          try {
+              doc.addImage(profile.company_logo, headerX, 7, 35, 35);
+              headerX = 55;
+          } catch (e) { console.error("Erro ao adicionar logo:", e); }
+      }
+
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(24);
       doc.setFont("helvetica", "bold");
-      doc.text(profile.workshop_name?.toUpperCase() || "AUTOPRIME", 15, 20);
+      doc.text(profile.workshop_name?.toUpperCase() || "AUTOPRIME", headerX, 20);
       
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      doc.text(`NIF / CNPJ: ${profile.cnpj || '---'} | TEL: ${profile.phone || '---'}`, 15, 28);
-      doc.text(`ENDEREÇO: ${profile.address || '---'}`, 15, 33);
-      doc.text(`EMAIL: ${profile.email || '---'}`, 15, 38);
-      doc.text(`INSTAGRAM: ${profile.instagram || '---'}`, 15, 43);
+      doc.text(`NIF / CNPJ: ${profile.cnpj || '---'} | TEL: ${profile.phone || '---'}`, headerX, 28);
+      doc.text(`ENDEREÇO: ${profile.address || '---'}`, headerX, 33);
+      doc.text(`EMAIL: ${profile.email || '---'}`, headerX, 38);
+      doc.text(`INSTAGRAM: ${profile.instagram || '---'}`, headerX, 43);
 
       // Título do Documento
       doc.setTextColor(...orange);
@@ -1662,6 +1670,31 @@ export default function App() {
                <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
                   <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Dados da Oficina</h2>
                   <Card className="p-6 space-y-6 bg-zinc-900/50">
+                    <div className="flex flex-col items-center gap-4 mb-2">
+                       <div className="relative w-32 h-32 rounded-xl bg-zinc-950 border-2 border-dashed border-zinc-800 flex items-center justify-center overflow-hidden hover:border-orange-600 transition-all group">
+                          {profile.company_logo ? (
+                             <img src={profile.company_logo} className="w-full h-full object-contain p-2" alt="Logo da Oficina" />
+                          ) : (
+                             <div className="flex flex-col items-center text-zinc-700">
+                                 <ImageIcon size={32} className="mb-2" />
+                                 <span className="text-[8px] font-black uppercase tracking-widest text-center">Inserir<br/>Logótipo</span>
+                             </div>
+                          )}
+                          <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                             <Camera size={20} className="text-white mb-1" />
+                             <span className="text-[8px] font-black text-white uppercase tracking-widest text-center">Alterar<br/>Logo</span>
+                             <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                   const reader = new FileReader();
+                                   reader.onloadend = () => setProfile({...profile, company_logo: reader.result});
+                                   reader.readAsDataURL(file);
+                                }
+                             }} />
+                          </label>
+                       </div>
+                       <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic">Logotipo do Orçamento PDF</p>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                        <Input label="Oficina" value={profile.workshop_name} onChange={e => setProfile({...profile, workshop_name: e.target.value})} icon={Car} placeholder="Nome Fantasia" />
                        <Input label="Telefone" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} icon={Phone} placeholder="9XX XXX XXX" />
