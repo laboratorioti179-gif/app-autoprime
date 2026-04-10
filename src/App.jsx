@@ -437,7 +437,7 @@ export default function App() {
       if (!cErr && cData) setCrmData(cData);
       if (!iErr && iData) setInventory(iData);
       if (!logErr && logData) setInventoryLog(logData);
-      if (!fErr && fData) setFixedCosts({ custom_costs: [], ...fData });
+      if (!fErr && fData) setFixedCosts({ ...fData, custom_costs: Array.isArray(fData.custom_costs) ? fData.custom_costs : [] });
       if (!pErr && pData) {
         setProfile(pData);
         if (pData.custom_services) setServiceOptions(pData.custom_services);
@@ -1052,9 +1052,12 @@ export default function App() {
 
   const financeMemo = useMemo(() => {
     const rev = vehicles.reduce((acc, v) => acc + (Number(v.price) || 0), 0);
-    const expBase = Object.entries({ ...fixedCosts, material: totalInventoryValue })
-      .filter(([k]) => k !== 'custom_costs')
-      .reduce((acc, [_, val]) => acc + (Number(val) || 0), 0);
+    const expBase = (Number(fixedCosts.aluguel) || 0) + 
+                    (Number(fixedCosts.funcionario) || 0) + 
+                    (Number(fixedCosts.luz) || 0) + 
+                    (Number(fixedCosts.agua) || 0) + 
+                    (Number(fixedCosts.internet) || 0) + 
+                    totalInventoryValue;
     const expCustom = (fixedCosts.custom_costs || []).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
     const exp = expBase + expCustom;
     return { rev, exp, profit: rev - exp };
@@ -1592,7 +1595,20 @@ export default function App() {
                            ))}
                         </div>
                      </div>
-                     <Button onClick={() => supabase.from('autoprime_fixed_costs').upsert({ tenant_id: currentTenantId, ...fixedCosts }, { onConflict: 'tenant_id' }).then(() => showNotification("Balanço Salvo!"))} className="w-full py-3"><Save size={16}/> Guardar Balanço Financeiro</Button>
+                     <Button onClick={async () => {
+                        const payload = {
+                           tenant_id: currentTenantId,
+                           aluguel: Number(fixedCosts.aluguel) || 0,
+                           funcionario: Number(fixedCosts.funcionario) || 0,
+                           luz: Number(fixedCosts.luz) || 0,
+                           agua: Number(fixedCosts.agua) || 0,
+                           internet: Number(fixedCosts.internet) || 0,
+                           custom_costs: fixedCosts.custom_costs || []
+                        };
+                        const { error } = await supabase.from('autoprime_fixed_costs').upsert(payload, { onConflict: 'tenant_id' });
+                        if (!error) showNotification("Balanço Salvo!");
+                        else showNotification("Erro ao salvar! Verifique a base de dados.", "danger");
+                     }} className="w-full py-3"><Save size={16}/> Guardar Balanço Financeiro</Button>
                   </Card>
               </div>
             )}
