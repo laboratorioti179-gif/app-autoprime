@@ -193,8 +193,10 @@ export default function App() {
   });
 
   const [serviceOptions, setServiceOptions] = useState([
-    "Pintura completa", "Capô", "Porta Esquerda", "Porta Direita", "Teto", 
-    "Traseira", "Para-choque (Traseiro)", "Para-choque (Dianteiro)"
+    "Pintura Completa", "Capô", "Para-choque dianteiro", "Para-lama direito", "Para-lama esquerdo", 
+    "Porta lado direito", "Porta lado esquerdo", "Teto", "Porta (Traseira) Lado direito", 
+    "Porta (Traseira) Lado esquerdo", "Caixa de Ar Lado direito", "Caixa de Ar Lado esquerdo", 
+    "Para-lama (Traseiro) direito", "Para-lama (Traseiro) esquerdo", "Porta-Malas", "Para-choque traseiro"
   ]);
 
   const [fixedCosts, setFixedCosts] = useState({
@@ -2089,7 +2091,7 @@ export default function App() {
                                if (current.includes(service)) {
                                  next = current.filter(s => s !== service);
                                } else {
-                                 if (service === "Pintura completa") {
+                                 if (service === "Pintura Completa") {
                                    next = [...serviceOptions];
                                  } else {
                                    next = [...current, service];
