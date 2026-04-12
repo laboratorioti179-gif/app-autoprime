@@ -802,7 +802,7 @@ export default function App() {
           try {
               doc.addImage(profile.company_logo, headerX, 7, 35, 35);
               headerX = 55;
-          } catch (e) {}
+          } catch (e) { console.error("Erro ao adicionar logo:", e); }
       }
 
       doc.setTextColor(255, 255, 255);
@@ -814,6 +814,8 @@ export default function App() {
       doc.setFont("helvetica", "normal");
       doc.text(`NIF / CNPJ: ${profile.cnpj || '---'} | TEL: ${profile.phone || '---'}`, headerX, 28);
       doc.text(`ENDEREÇO: ${profile.address || '---'}`, headerX, 33);
+      doc.text(`EMAIL: ${profile.email || '---'}`, headerX, 38);
+      doc.text(`INSTAGRAM: ${profile.instagram || '---'}`, headerX, 43);
       
       // Título do Documento
       doc.setTextColor(...orange);
