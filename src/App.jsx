@@ -189,7 +189,8 @@ export default function App() {
     showPolishing: true,
     showInventory: true,
     showFinance: true,
-    autoSendStatus: false
+    autoSendStatus: false,
+    nextOsNumber: 1
   });
 
   const [serviceOptions, setServiceOptions] = useState([
@@ -215,6 +216,11 @@ export default function App() {
 
   const [budgetForm, setBudgetForm] = useState({
     customer_name: "", phone: "", brand: "", model: "", license_plate: "", color: "", services: [{ description: "", price: "" }]
+  });
+
+  const [osForm, setOsForm] = useState({
+    os_number: "0001", customer_name: "", phone: "", brand: "", model: "", license_plate: "", km: "", fuel_level: "Meio Tanque",
+    mechanic_services: [{ description: "", price: "" }], bodywork_services: [{ description: "", price: "" }], painting_services: [{ description: "", price: "" }], observations: ""
   });
 
   const [newItem, setNewItem] = useState({ name: "", brand: "", quantity: "", price: "" });
@@ -443,7 +449,10 @@ export default function App() {
       if (!pErr && pData) {
         setProfile(pData);
         if (pData.custom_services) setServiceOptions(pData.custom_services);
-        if (pData.app_settings) setAppSettings(pData.app_settings);
+        if (pData.app_settings) {
+          setAppSettings(pData.app_settings);
+          setOsForm(prev => ({ ...prev, os_number: String(pData.app_settings.nextOsNumber || 1).padStart(4, '0') }));
+        }
       } else if (!pErr && !pData) {
         // Conta antiga sem perfil na tabela: Cria um perfil dinâmico para desbloquear a tela imediatamente
         const fallbackProfile = { 
@@ -753,7 +762,171 @@ export default function App() {
 
       doc.save(`Orcamento_${vehicle.license_plate}.pdf`);
       showNotification("PDF gerado!");
+      setBudgetForm({
+        customer_name: "", phone: "", brand: "", model: "", license_plate: "", color: "", services: [{ description: "", price: "" }]
+      });
     } catch (err) { console.error("Erro ao gerar PDF:", err); }
+  };
+
+  const generateOSPDF = async (os) => {
+    try {
+      if (!window.jspdf) return;
+      
+      let finalOsNumber = os.os_number;
+      let nextNumToSave = (appSettings.nextOsNumber || parseInt(os.os_number) || 1) + 1;
+      let currentSettings = appSettings;
+
+      if (supabase && currentTenantId) {
+         const { data } = await supabase.from('autoprime_profile').select('app_settings').eq('tenant_id', currentTenantId).maybeSingle();
+         if (data && data.app_settings) {
+             currentSettings = data.app_settings;
+             const actualCurrent = currentSettings.nextOsNumber || parseInt(os.os_number) || 1;
+             finalOsNumber = String(actualCurrent).padStart(4, '0');
+             nextNumToSave = actualCurrent + 1;
+         }
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      
+      const orange = [234, 88, 12];
+      const dark = [24, 24, 27];
+      const gray = [113, 113, 122];
+
+      // Cabeçalho Principal (Dados da Oficina)
+      doc.setFillColor(...dark);
+      doc.rect(0, 0, 210, 50, 'F');
+      
+      let headerX = 15;
+      if (profile.company_logo) {
+          try {
+              doc.addImage(profile.company_logo, headerX, 7, 35, 35);
+              headerX = 55;
+          } catch (e) {}
+      }
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(24);
+      doc.setFont("helvetica", "bold");
+      doc.text(profile.workshop_name?.toUpperCase() || "AUTOPRIME", headerX, 20);
+      
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(`NIF / CNPJ: ${profile.cnpj || '---'} | TEL: ${profile.phone || '---'}`, headerX, 28);
+      doc.text(`ENDEREÇO: ${profile.address || '---'}`, headerX, 33);
+      
+      // Título do Documento
+      doc.setTextColor(...orange);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(`ORDEM DE SERVIÇO Nº ${finalOsNumber || '---'}`, 195, 15, { align: "right" });
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.text(`DATA: ${new Date().toLocaleDateString('pt-BR')}`, 195, 20, { align: "right" });
+
+      // Dados Gerais
+      doc.setTextColor(...dark);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("DADOS DO CLIENTE E VEÍCULO", 15, 60);
+      doc.setDrawColor(...orange);
+      doc.line(15, 62, 195, 62);
+
+      doc.setFont("helvetica", "normal");
+      doc.text(`NOME: ${os.customer_name}`, 15, 70);
+      doc.text(`CONTATO: ${os.phone}`, 120, 70);
+      doc.text(`VEÍCULO: ${os.brand} ${os.model}`, 15, 78);
+      doc.text(`PLACA: ${os.license_plate}`, 120, 78);
+      doc.text(`QUILOMETRAGEM: ${os.km}`, 15, 86);
+      doc.text(`COMBUSTÍVEL: ${os.fuel_level}`, 120, 86);
+
+      // Escopo Técnico
+      doc.setFont("helvetica", "bold");
+      doc.text("ESCOPO DE SERVIÇOS TÉCNICOS", 15, 100);
+      doc.text("VALOR", 195, 100, { align: "right" });
+      doc.line(15, 102, 195, 102);
+
+      let yPos = 110;
+      doc.setFontSize(9);
+      
+      const renderOSCategory = (title, services) => {
+          const valid = (services || []).filter(s => s.description || s.price);
+          if (valid.length > 0) {
+              doc.setFont("helvetica", "bold");
+              doc.setTextColor(...orange);
+              doc.text(title, 15, yPos);
+              doc.setTextColor(...dark);
+              doc.setFont("helvetica", "normal");
+              yPos += 6;
+              valid.forEach(srv => {
+                  const pText = srv.price ? `R$ ${Number(srv.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : "";
+                  const splitLine = doc.splitTextToSize(`• ${srv.description || '---'}`, 150);
+                  doc.text(splitLine, 15, yPos);
+                  if (pText) {
+                      doc.text(pText, 195, yPos, { align: "right" });
+                  }
+                  yPos += (splitLine.length * 6);
+              });
+              yPos += 4;
+          }
+      };
+
+      renderOSCategory("MECÂNICA:", os.mechanic_services);
+      renderOSCategory("FUNILARIA / CHAPARIA:", os.bodywork_services);
+      renderOSCategory("PINTURA / ESTÉTICA:", os.painting_services);
+
+      const totalOS = [...(os.mechanic_services || []), ...(os.bodywork_services || []), ...(os.painting_services || [])]
+                        .reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
+
+      if (totalOS > 0) {
+          doc.setFillColor(...dark);
+          doc.rect(15, yPos, 180, 10, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.text(`VALOR TOTAL DOS SERVIÇOS: R$ ${totalOS.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 105, yPos + 7, { align: "center" });
+          yPos += 18;
+          doc.setTextColor(...dark);
+          doc.setFontSize(9);
+      }
+
+      if(os.observations) {
+          doc.setFont("helvetica", "bold");
+          doc.text("OBSERVAÇÕES ADICIONAIS:", 15, yPos);
+          doc.setFont("helvetica", "normal");
+          const splitObs = doc.splitTextToSize(os.observations, 180);
+          doc.text(splitObs, 15, yPos + 6);
+      }
+
+      // Assinaturas
+      const pageHeight = doc.internal.pageSize.height;
+      const sigY = pageHeight - 40;
+      
+      doc.setDrawColor(...gray);
+      doc.line(20, sigY, 90, sigY);
+      doc.text("ASSINATURA DO CLIENTE", 55, sigY + 5, { align: "center" });
+
+      doc.line(120, sigY, 190, sigY);
+      doc.text(`TÉCNICO RESPONSÁVEL`, 155, sigY + 5, { align: "center" });
+
+      doc.setFontSize(7);
+      doc.setTextColor(...gray);
+      doc.text("Autorizo a execução dos serviços descritos acima.", 105, pageHeight - 15, { align: "center" });
+
+      doc.save(`OrdemDeServico_${os.license_plate}.pdf`);
+      showNotification("Ordem de Serviço Gerada!");
+
+      const newSettings = { ...currentSettings, nextOsNumber: nextNumToSave };
+      setAppSettings(newSettings);
+      setOsForm({ 
+        os_number: String(nextNumToSave).padStart(4, '0'),
+        customer_name: "", phone: "", brand: "", model: "", license_plate: "", km: "", fuel_level: "Meio Tanque",
+        mechanic_services: [{ description: "", price: "" }], bodywork_services: [{ description: "", price: "" }], painting_services: [{ description: "", price: "" }], observations: ""
+      });
+      if (supabase && currentTenantId) {
+         await supabase.from('autoprime_profile').update({ app_settings: newSettings }).eq('tenant_id', currentTenantId);
+      }
+    } catch (err) { console.error("Erro ao gerar OS PDF:", err); }
   };
 
   const generateCRMPDF = () => {
@@ -1178,6 +1351,7 @@ export default function App() {
       <nav className="flex flex-col gap-1 flex-1 overflow-y-auto no-scrollbar pb-4">
         {[ 
           { id: 'dashboard', label: 'Painel', icon: LayoutDashboard, visible: true }, 
+          { id: 'service_order', label: 'Ordem de Serviço', icon: ClipboardList, visible: true },
           { id: 'budget_generator', label: 'Orçamentos', icon: FileText, visible: true },
           { id: 'history', label: 'Histórico', icon: History, visible: true }, 
           { id: 'polishing', label: 'Polimento', icon: Sparkles, visible: appSettings.showPolishing }, 
@@ -1446,6 +1620,103 @@ export default function App() {
                     </Card>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'service_order' && (
+              <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                 <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Ordem de Serviço</h2>
+                 <Card className="p-6 space-y-6 bg-zinc-900/50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <Input label="Nº da OS" value={osForm.os_number} readOnly icon={FileText} placeholder="Ex: 0001" />
+                       <Input label="Nome do Cliente" value={osForm.customer_name} onChange={e => setOsForm({...osForm, customer_name: e.target.value})} icon={User} placeholder="Nome completo" />
+                       <Input label="Contacto" value={osForm.phone} onChange={e => setOsForm({...osForm, phone: e.target.value})} icon={Phone} placeholder="Telefone / WhatsApp" />
+                       <Input label="Marca" value={osForm.brand} onChange={e => setOsForm({...osForm, brand: e.target.value})} icon={Car} placeholder="Ex: BMW" />
+                       <Input label="Modelo" value={osForm.model} onChange={e => setOsForm({...osForm, model: e.target.value})} icon={Car} placeholder="Ex: Série 3" />
+                       <Input label="Placa / Matrícula" value={osForm.license_plate} onChange={e => setOsForm({...osForm, license_plate: e.target.value.toUpperCase()})} icon={FileDigit} placeholder="XX-XX-XX" />
+                       
+                       <div className="flex gap-4 md:col-span-2">
+                         <div className="flex-1">
+                           <Input label="Quilometragem" value={osForm.km} onChange={e => setOsForm({...osForm, km: e.target.value})} icon={Gauge} placeholder="Ex: 50.000 km" />
+                         </div>
+                         <div className="flex flex-col gap-1 w-1/2">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">Combustível</label>
+                            <select className="bg-zinc-950 border border-zinc-800 rounded-lg w-full py-2 px-3 text-sm text-white outline-none focus:border-orange-600 transition-all" value={osForm.fuel_level} onChange={e => setOsForm({...osForm, fuel_level: e.target.value})}>
+                               <option value="Reserva">Reserva</option>
+                               <option value="1/4 Tanque">1/4 Tanque</option>
+                               <option value="Meio Tanque">Meio Tanque</option>
+                               <option value="3/4 Tanque">3/4 Tanque</option>
+                               <option value="Tanque Cheio">Tanque Cheio</option>
+                            </select>
+                         </div>
+                       </div>
+                    </div>
+
+                    <div className="space-y-4 pt-4 border-t border-zinc-800">
+                       <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic flex items-center gap-2"><Wrench size={14}/> Escopo Técnico</p>
+                       
+                       <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                              <label className="text-[10px] font-black uppercase text-white pb-1">Mecânica</label>
+                              <button type="button" onClick={() => setOsForm({...osForm, mechanic_services: [...osForm.mechanic_services, { description: "", price: "" }]})} className="text-[9px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest flex items-center gap-1"><Plus size={12}/> Adicionar Serviço</button>
+                          </div>
+                          {osForm.mechanic_services.map((srv, idx) => (
+                             <div key={idx} className="flex gap-2 items-end animate-in fade-in">
+                                <div className="flex-1">
+                                  <Input placeholder="Ex: Troca de óleo..." value={srv.description} onChange={e => { const newSrv = [...osForm.mechanic_services]; newSrv[idx].description = e.target.value; setOsForm({...osForm, mechanic_services: newSrv}); }} icon={Wrench} />
+                                </div>
+                                <div className="w-32">
+                                  <Input placeholder="Valor" type="number" value={srv.price} onChange={e => { const newSrv = [...osForm.mechanic_services]; newSrv[idx].price = e.target.value; setOsForm({...osForm, mechanic_services: newSrv}); }} icon={DollarSign} />
+                                </div>
+                                <button type="button" onClick={() => { const newSrv = osForm.mechanic_services.filter((_, i) => i !== idx); setOsForm({...osForm, mechanic_services: newSrv.length ? newSrv : [{ description: "", price: "" }]}); }} className="mb-1 p-2 bg-red-600/10 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-all"><Trash2 size={16}/></button>
+                             </div>
+                          ))}
+                       </div>
+
+                       <div className="space-y-3">
+                          <div className="flex justify-between items-center mt-2 border-t border-zinc-800/50 pt-3">
+                              <label className="text-[10px] font-black uppercase text-white pb-1">Funilaria / Chaparia</label>
+                              <button type="button" onClick={() => setOsForm({...osForm, bodywork_services: [...osForm.bodywork_services, { description: "", price: "" }]})} className="text-[9px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest flex items-center gap-1"><Plus size={12}/> Adicionar Serviço</button>
+                          </div>
+                          {osForm.bodywork_services.map((srv, idx) => (
+                             <div key={idx} className="flex gap-2 items-end animate-in fade-in">
+                                <div className="flex-1">
+                                  <Input placeholder="Ex: Repuxo no paralama..." value={srv.description} onChange={e => { const newSrv = [...osForm.bodywork_services]; newSrv[idx].description = e.target.value; setOsForm({...osForm, bodywork_services: newSrv}); }} icon={Wrench} />
+                                </div>
+                                <div className="w-32">
+                                  <Input placeholder="Valor" type="number" value={srv.price} onChange={e => { const newSrv = [...osForm.bodywork_services]; newSrv[idx].price = e.target.value; setOsForm({...osForm, bodywork_services: newSrv}); }} icon={DollarSign} />
+                                </div>
+                                <button type="button" onClick={() => { const newSrv = osForm.bodywork_services.filter((_, i) => i !== idx); setOsForm({...osForm, bodywork_services: newSrv.length ? newSrv : [{ description: "", price: "" }]}); }} className="mb-1 p-2 bg-red-600/10 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-all"><Trash2 size={16}/></button>
+                             </div>
+                          ))}
+                       </div>
+
+                       <div className="space-y-3">
+                          <div className="flex justify-between items-center mt-2 border-t border-zinc-800/50 pt-3">
+                              <label className="text-[10px] font-black uppercase text-white pb-1">Pintura e Estética</label>
+                              <button type="button" onClick={() => setOsForm({...osForm, painting_services: [...osForm.painting_services, { description: "", price: "" }]})} className="text-[9px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest flex items-center gap-1"><Plus size={12}/> Adicionar Serviço</button>
+                          </div>
+                          {osForm.painting_services.map((srv, idx) => (
+                             <div key={idx} className="flex gap-2 items-end animate-in fade-in">
+                                <div className="flex-1">
+                                  <Input placeholder="Ex: Pintura do capô..." value={srv.description} onChange={e => { const newSrv = [...osForm.painting_services]; newSrv[idx].description = e.target.value; setOsForm({...osForm, painting_services: newSrv}); }} icon={Paintbrush} />
+                                </div>
+                                <div className="w-32">
+                                  <Input placeholder="Valor" type="number" value={srv.price} onChange={e => { const newSrv = [...osForm.painting_services]; newSrv[idx].price = e.target.value; setOsForm({...osForm, painting_services: newSrv}); }} icon={DollarSign} />
+                                </div>
+                                <button type="button" onClick={() => { const newSrv = osForm.painting_services.filter((_, i) => i !== idx); setOsForm({...osForm, painting_services: newSrv.length ? newSrv : [{ description: "", price: "" }]}); }} className="mb-1 p-2 bg-red-600/10 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-all"><Trash2 size={16}/></button>
+                             </div>
+                          ))}
+                       </div>
+
+                       <div className="space-y-3 mt-4 border-t border-zinc-800 pt-4">
+                          <label className="text-[10px] font-black uppercase text-white">Observações / Avarias Pré-existentes</label>
+                          <textarea rows="2" className="bg-zinc-950 border border-zinc-800 rounded-lg w-full p-3 text-sm text-white outline-none focus:border-orange-600 transition-all placeholder:text-zinc-700" placeholder="Ex: Risco profundo na porta traseira, pneu reserva ausente..." value={osForm.observations} onChange={e => setOsForm({...osForm, observations: e.target.value})}></textarea>
+                       </div>
+                    </div>
+
+                    <Button onClick={() => generateOSPDF(osForm)} className="w-full py-4 text-sm tracking-[0.2em] font-black italic"><Download size={16}/> Gerar Ordem de Serviço (PDF)</Button>
+                 </Card>
               </div>
             )}
 
