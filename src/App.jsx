@@ -422,8 +422,16 @@ export default function App() {
       // 1. Busca imediata dos veículos (sem await para não bloquear a renderização da tela)
       supabase.from('autoprime_vehicles').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false })
         .then(({ data, error }) => {
-          // Proteção contra oscilação de rede: Só atualiza a tela se tiver sucesso
-          if (!error && data) setVehicles(data);
+          // Proteção contra oscilação de rede e erro 500 (falta da coluna created_at)
+          if (!error && data) {
+             setVehicles(data);
+          } else {
+             // Fallback de segurança: busca sem ordenação caso a tabela esteja desatualizada
+             supabase.from('autoprime_vehicles').select('*').eq('tenant_id', currentTenantId)
+               .then(({ data: fallbackData }) => {
+                  if (fallbackData) setVehicles(fallbackData.reverse());
+               });
+          }
         });
 
       // 2. Limpeza automática em background
@@ -1228,8 +1236,8 @@ export default function App() {
     }
   };
 
-  const activeVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'active'), [vehicles]);
-  const historyVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'done'), [vehicles]);
+  const activeVehiclesMemo = useMemo(() => vehicles.filter(v => v.status !== 'done' && v.work_status !== 'Concluído'), [vehicles]);
+  const historyVehiclesMemo = useMemo(() => vehicles.filter(v => v.status === 'done' || v.work_status === 'Concluído'), [vehicles]);
   
   const totalInventoryValue = useMemo(() => {
     return (inventory || []).reduce((acc, item) => acc + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
