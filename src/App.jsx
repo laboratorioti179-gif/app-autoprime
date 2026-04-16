@@ -219,7 +219,7 @@ export default function App() {
   });
 
   const [osForm, setOsForm] = useState({
-    os_number: "0001", customer_name: "", phone: "", brand: "", model: "", license_plate: "", km: "", fuel_level: "Meio Tanque",
+    os_number: "", customer_name: "", phone: "", brand: "", model: "", license_plate: "", km: "", fuel_level: "Meio Tanque",
     mechanic_services: [{ description: "", price: "" }], bodywork_services: [{ description: "", price: "" }], painting_services: [{ description: "", price: "" }], observations: ""
   });
 
@@ -387,31 +387,9 @@ export default function App() {
     initApp();
   }, []);
 
-  // SINCRONIZAÇÃO MÁGICA EM TEMPO REAL: Escuta veículos e pagamentos da Stripe
-  useEffect(() => {
-    if (!supabase || !currentTenantId) return;
-
-    const globalChannel = supabase
-      .channel('realtime-autoprime-data')
-      // Escuta novos veículos (como já tínhamos)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'autoprime_vehicles' }, () => {
-          console.log("Novo veículo! Atualizando tela...");
-          fetchData();
-      })
-      // Escuta mudanças no Perfil (Pagamentos da Stripe entrando no banco)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'autoprime_profile', filter: `tenant_id=eq.${currentTenantId}` }, (payload) => {
-          console.log("Status de Assinatura atualizado pela Stripe! Sincronizando tela...");
-          // Recarrega os dados imediatamente. Se a Stripe enviou "Ativa", a tela desbloqueia na hora.
-          fetchData(); 
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(globalChannel);
-    };
-  }, [supabase, currentTenantId]);
-
-  // OTIMIZAÇÃO DE DESEMPENHO: Removido activeTab do array para evitar refetch total do banco de dados ao trocar de aba
+  // OTIMIZAÇÃO DE DESEMPENHO: A sincronização em tempo real via WebSocket foi desativada
+  // para evitar o erro "WebSocket not available" no Canvas.
+  // Atualizações ocorrerão manualmente ou via fetchData no mount.
   useEffect(() => {
     if (supabase && isAuthenticated && currentTenantId) fetchData();
   }, [supabase, isAuthenticated, currentTenantId]);
@@ -457,10 +435,15 @@ export default function App() {
       if (!pErr && pData) {
         setProfile(pData);
         if (pData.custom_services) setServiceOptions(pData.custom_services);
-        if (pData.app_settings) {
-          setAppSettings(pData.app_settings);
-          setOsForm(prev => ({ ...prev, os_number: String(pData.app_settings.nextOsNumber || 1).padStart(4, '0') }));
+        
+        let parsedSettings = pData.app_settings || {};
+        if (typeof parsedSettings === 'string') {
+           try { parsedSettings = JSON.parse(parsedSettings); } catch(e) { parsedSettings = {}; }
         }
+        
+        const mergedSettings = { ...appSettings, ...parsedSettings };
+        setAppSettings(mergedSettings);
+        
       } else if (!pErr && !pData) {
         // Conta antiga sem perfil na tabela: Cria um perfil dinâmico para desbloquear a tela imediatamente
         const fallbackProfile = { 
@@ -780,19 +763,10 @@ export default function App() {
     try {
       if (!window.jspdf) return;
       
-      let finalOsNumber = os.os_number;
-      let nextNumToSave = (appSettings.nextOsNumber || parseInt(os.os_number) || 1) + 1;
-      let currentSettings = appSettings;
-
-      if (supabase && currentTenantId) {
-         const { data } = await supabase.from('autoprime_profile').select('app_settings').eq('tenant_id', currentTenantId).maybeSingle();
-         if (data && data.app_settings) {
-             currentSettings = data.app_settings;
-             const actualCurrent = currentSettings.nextOsNumber || parseInt(os.os_number) || 1;
-             finalOsNumber = String(actualCurrent).padStart(4, '0');
-             nextNumToSave = actualCurrent + 1;
-         }
-      }
+      const uniqueId = Date.now().toString().slice(-8);
+      const finalOsNumber = (os.os_number && os.os_number.trim() !== "") 
+          ? `${os.os_number.trim()}-${uniqueId}` 
+          : `#${uniqueId}`;
 
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
@@ -923,19 +897,14 @@ export default function App() {
       doc.setTextColor(...gray);
       doc.text("Autorizo a execução dos serviços descritos acima.", 105, pageHeight - 15, { align: "center" });
 
-      doc.save(`OrdemDeServico_${os.license_plate}.pdf`);
+      doc.save(`OrdemDeServico_${finalOsNumber}.pdf`);
       showNotification("Ordem de Serviço Gerada!");
 
-      const newSettings = { ...currentSettings, nextOsNumber: nextNumToSave };
-      setAppSettings(newSettings);
       setOsForm({ 
-        os_number: String(nextNumToSave).padStart(4, '0'),
+        os_number: "",
         customer_name: "", phone: "", brand: "", model: "", license_plate: "", km: "", fuel_level: "Meio Tanque",
         mechanic_services: [{ description: "", price: "" }], bodywork_services: [{ description: "", price: "" }], painting_services: [{ description: "", price: "" }], observations: ""
       });
-      if (supabase && currentTenantId) {
-         await supabase.from('autoprime_profile').update({ app_settings: newSettings }).eq('tenant_id', currentTenantId);
-      }
     } catch (err) { console.error("Erro ao gerar OS PDF:", err); }
   };
 
@@ -977,10 +946,8 @@ export default function App() {
       const currentV = vehicles.find(v => v.id === id);
       
       let scheduledDate = currentV?.scheduled_date || null;
-      if (newStatus === 'Agendados') {
-        const p = window.prompt("Defina a data para este agendamento (Ex: 15/02):", scheduledDate || "");
-        if (p !== null) scheduledDate = p;
-      }
+      // Prompt removido pois não é suportado nativamente no Canvas (iframe)
+      // O agendamento deve ser feito através da interface de Data na ficha do veículo
 
       const upd = { 
         work_status: newStatus, 
@@ -1353,7 +1320,7 @@ export default function App() {
     );
   }
 
-  const SidebarContent = () => (
+  const renderSidebarContent = () => (
     <>
       <div className="flex items-center gap-3 mb-8 px-2 flex-shrink-0">
         <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter mt-1">Auto<span className="text-orange-600">Prime</span></h1>
@@ -1538,7 +1505,7 @@ export default function App() {
               <div className="absolute right-0 top-0 bottom-0 w-64 bg-zinc-950 p-6 flex flex-col border-l border-zinc-900 animate-in slide-in-from-right duration-300 shadow-2xl">
                 <button onClick={() => setIsMobileMenuOpen(false)} className="absolute top-4 left-4 text-zinc-700 hover:text-white transition-all z-10 p-2"><X size={20}/></button>
                 <div className="mt-8 flex-1 overflow-y-auto no-scrollbar pb-24">
-                   <SidebarContent />
+                   {renderSidebarContent()}
                 </div>
               </div>
             </div>
@@ -1567,7 +1534,7 @@ export default function App() {
              </button>
           </nav>
 
-          <aside className="hidden md:flex flex-col w-64 bg-zinc-950 border-r border-zinc-900 p-6 h-full shrink-0 z-10"><SidebarContent /></aside>
+          <aside className="hidden md:flex flex-col w-64 bg-zinc-950 border-r border-zinc-900 p-6 h-full shrink-0 z-10">{renderSidebarContent()}</aside>
           
           <main className="flex-1 h-full overflow-y-auto overflow-x-hidden bg-[#050505] p-4 md:p-6 lg:p-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8 scroll-smooth relative">
             {activeTab === 'dashboard' && (
@@ -1638,7 +1605,7 @@ export default function App() {
                  <h2 className="text-lg font-black text-white uppercase italic tracking-tight">Ordem de Serviço</h2>
                  <Card className="p-6 space-y-6 bg-zinc-900/50">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <Input label="Nº da OS" value={osForm.os_number} readOnly icon={FileText} placeholder="Ex: 0001" />
+                       <Input label="Nº da OS (Opcional/Prefixo)" value={osForm.os_number} onChange={e => setOsForm({...osForm, os_number: e.target.value})} icon={FileText} placeholder="Deixe vazio para auto-gerar" />
                        <Input label="Nome do Cliente" value={osForm.customer_name} onChange={e => setOsForm({...osForm, customer_name: e.target.value})} icon={User} placeholder="Nome completo" />
                        <Input label="Contacto" value={osForm.phone} onChange={e => setOsForm({...osForm, phone: e.target.value})} icon={Phone} placeholder="Telefone / WhatsApp" />
                        <Input label="Marca" value={osForm.brand} onChange={e => setOsForm({...osForm, brand: e.target.value})} icon={Car} placeholder="Ex: BMW" />
@@ -1937,7 +1904,7 @@ export default function App() {
                       { key: 'showFinance', label: 'Módulo Financeiro', icon: DollarSign, color: 'text-emerald-500' },
                       { key: 'autoSendStatus', label: 'Envio Automático WhatsApp', icon: MessageCircle, color: 'text-orange-500' }
                     ].map(item => (
-                      <Card key={item.key} onClick={() => {const ns={...appSettings, [item.key]: !appSettings[item.key]}; setAppSettings(ns); supabase.from('autoprime_profile').update({ app_settings: ns }).eq('tenant_id', currentTenantId); showNotification("Configuração Atualizada!");}} className={`p-5 border-2 cursor-pointer transition-all ${appSettings[item.key] ? 'border-orange-600/30' : 'border-zinc-900 grayscale opacity-40'}`}>
+                      <Card key={item.key} onClick={() => {const ns={...appSettings, [item.key]: !appSettings[item.key]}; setAppSettings(ns); setProfile(prev => ({ ...prev, app_settings: ns })); supabase.from('autoprime_profile').update({ app_settings: ns }).eq('tenant_id', currentTenantId); showNotification("Configuração Atualizada!");}} className={`p-5 border-2 cursor-pointer transition-all ${appSettings[item.key] ? 'border-orange-600/30' : 'border-zinc-900 grayscale opacity-40'}`}>
                          <div className="flex justify-between items-center mb-4">
                             <item.icon size={20} className={appSettings[item.key] ? item.color : 'text-zinc-700'}/>
                             {appSettings[item.key] ? <ToggleRight className="text-orange-600" size={24}/> : <ToggleLeft className="text-zinc-800" size={24}/>}
@@ -1986,7 +1953,7 @@ export default function App() {
                        <Input label="E-mail" value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} icon={Mail} placeholder="oficina@exemplo.com" />
                        <div className="md:col-span-2"><Input label="Morada / Endereço" value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})} icon={MapPin} placeholder="Endereço Completo" /></div>
                     </div>
-                    <Button onClick={() => supabase.from('autoprime_profile').upsert({ tenant_id: currentTenantId, ...profile }).then(() => showNotification("Perfil Guardado!"))} className="w-full py-3"><Save size={16}/> Guardar Perfil Oficina</Button>
+                    <Button onClick={() => supabase.from('autoprime_profile').upsert({ tenant_id: currentTenantId, ...profile, app_settings: appSettings }).then(() => showNotification("Perfil Guardado!"))} className="w-full py-3"><Save size={16}/> Guardar Perfil Oficina</Button>
                   </Card>
                </div>
             )}
@@ -2077,14 +2044,11 @@ export default function App() {
                           
                           <button 
                             onClick={async () => {
-                              const resposta = window.confirm("Se a verificação automática estiver demorando mais de 2 minutos após o seu pagamento, deseja forçar a liberação emergencial da conta?");
-                              if (resposta) {
-                                 showNotification("A forçar sincronização no banco de dados...");
-                                 const novaData = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-                                 const { error } = await supabase.from('autoprime_profile').update({ subscription_status: 'Ativa', subscription_expires_at: novaData }).eq('id', profile.id);
-                                 if (error) window.alert("O Supabase bloqueou a ativação por segurança (RLS).\n\nRode este comando no SQL Editor:\nALTER TABLE autoprime_profile DISABLE ROW LEVEL SECURITY;");
-                                 else { fetchData(); showNotification("Acesso liberado com sucesso!"); }
-                              }
+                               showNotification("A forçar sincronização no banco de dados...");
+                               const novaData = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+                               const { error } = await supabase.from('autoprime_profile').update({ subscription_status: 'Ativa', subscription_expires_at: novaData }).eq('id', profile.id);
+                               if (error) showNotification("Erro de RLS no Supabase. Desative o RLS na tabela.", "danger");
+                               else { fetchData(); showNotification("Acesso liberado com sucesso!"); }
                             }}
                             className="text-[9px] font-black text-zinc-600 uppercase tracking-widest hover:text-white underline decoration-zinc-800 transition-colors pt-2"
                           >
@@ -2133,7 +2097,7 @@ export default function App() {
                        const { new_password, ...profileDataToSave } = profile;
                        
                        // Salva os dados do perfil (incluindo a foto base64)
-                       await supabase.from('autoprime_profile').upsert({ tenant_id: currentTenantId, ...profileDataToSave });
+                       await supabase.from('autoprime_profile').upsert({ tenant_id: currentTenantId, ...profileDataToSave, app_settings: appSettings });
                        
                        // Se o utilizador digitou uma nova senha, atualiza na tabela de admins
                        if (new_password) {
