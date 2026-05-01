@@ -1264,6 +1264,32 @@ export default function App() {
     return whitelisted.includes(status);
   }, [profile.subscription_status, profile.subscription_expires_at]);
 
+  useEffect(() => {
+    if (profile.subscription_expires_at && isSubscriptionValid) {
+      const expiryDate = new Date(profile.subscription_expires_at);
+      const now = new Date();
+      const diffTime = expiryDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays <= 3 && diffDays > 0) {
+        const msg = `Atenção: A sua assinatura vence em ${diffDays} dia(s)!`;
+        showNotification(msg, "danger");
+        
+        if ("Notification" in window) {
+          if (Notification.permission === "granted") {
+            new Notification("AutoPrime: Assinatura", { body: msg });
+          } else if (Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+              if (permission === "granted") {
+                new Notification("AutoPrime: Assinatura", { body: msg });
+              }
+            });
+          }
+        }
+      }
+    }
+  }, [profile.subscription_expires_at, isSubscriptionValid]);
+
   if (authLoading) return <div className="h-[100dvh] w-full fixed inset-0 bg-black flex items-center justify-center text-zinc-800 font-bold uppercase text-[10px] tracking-widest animate-pulse">Sincronizando sistema...</div>;
 
   if (isPublicView) {
